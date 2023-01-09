@@ -105,6 +105,9 @@ class Complex:
     def __add__(self, other):
         return Complex(self.re + other.re, self.im + other.im)
 
+    def __sub__(self, other):
+        return self + (- other)
+
     def __neg__(self):
         return Complex(-1) * self
 
@@ -182,7 +185,9 @@ class Element:
     def __add__(self, other: 'Element') -> 'Element':
         return Sum(self, other)
 
-    @abstractmethod
+    def __sub__(self, other: 'Element') -> 'Element':
+        return self + - other
+
     def __mul__(self, other: 'Element') -> 'Element':
         return Product(self, other)
 
@@ -540,18 +545,18 @@ def reduced_casimir_third_order():
     return reduced_casimir_3
 
 if __name__ == "__main__":
-    # ads = generate_ad_action_matrices(basisVectors)
-    # k = np.array([[np.trace(ads[i] @ ads[j]) for j in range(len(basisVectors))] for i in range(len(basisVectors))])
-    # e = e12 * e12 * h1
-    # print(e)
-    # print(e.canonicalize())
-    # c = reduced_casimir_third_order()
-    # cc = c.canonicalize()
-    # print(cc)
+    ads = generate_ad_action_matrices(basisVectors)
+    k = np.array([[np.trace(ads[i] @ ads[j]) for j in range(len(basisVectors))] for i in range(len(basisVectors))])
+    e = e12 * e12 * h1
+    print(e)
+    print(e.canonicalize())
+    c = reduced_casimir_third_order()
+    cc = c.canonicalize()
+    print(cc)
     one = Complex(1, 0)
     i = Complex(0, 1)
     e = one + i*one
-    b = Complex(1,1)
+    b = Complex(1, 1)
     print(b == e)
     print(e**2)
     print(3 * e)
