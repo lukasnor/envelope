@@ -105,35 +105,36 @@ class Complex:
     def __add__(self, other):
         return Complex(self.re + other.re, self.im + other.im)
 
-    def __sub__(self, other):
-        return Complex(self.re - other.re, self.im - other.im)
+    def __neg__(self):
+        return Complex(-1) * self
 
     def __mul__(self, other):
         if isinstance(other, Complex):
             return Complex(self.re * other.re - self.im * other.im, self.re * other.im + self.im * other.re)
-        if isinstance(other, Rational):
+        elif isinstance(other, Rational):
             return self * Complex(other, 0)
-        if isinstance(other, numbers.Complex) and \
+        elif isinstance(other, numbers.Complex) and \
                 isinstance(other.real, numbers.Rational) and \
                 isinstance(other.imag, numbers.Rational):
             return self * Complex(Rational(other.real.numerator, other.real.denominator),
                                   Rational(other.imag.numerator, other.imag.denominator))
-        if isinstance(other, numbers.Rational):
+        elif isinstance(other, numbers.Rational):
             return self * Complex(Rational(other.numerator, other.denominator))
-        raise NotImplementedError
-
+        else:
+            return NotImplemented
 
     def __rmul__(self, other):
         if isinstance(other, Rational):
             return self * Complex(other)
-        if isinstance(other, numbers.Rational):
+        elif isinstance(other, numbers.Rational):
             return self * Complex(Rational(other.numerator, other.denominator), 0)
-        if isinstance(other, numbers.Complex) and \
+        elif isinstance(other, numbers.Complex) and \
                 isinstance(other.real, numbers.Rational) and \
                 isinstance(other.imag, numbers.Rational):
             return self * Complex(Rational(other.real.numerator, other.real.denominator),
                                   Rational(other.imag.numerator, other.imag.denominator))
-        raise NotImplementedError
+        else:
+            return NotImplemented
 
     def __pow__(self, power: int):
         return reduce(Complex.__mul__, [self for _ in range(power)])
@@ -141,12 +142,12 @@ class Complex:
     def __eq__(self, other):
         if isinstance(other, Complex):
             return (self.re, self.im) == (other.re, other.im)
-        if isinstance(other, numbers.Complex):
-            return self == Complex(other.real, other.imag)
-        if isinstance(other, Rational):
+        elif isinstance(other, Rational):
             return self == Complex(other, 0)
+        elif isinstance(other, numbers.Complex):
+            return self == Complex(other.real, other.imag)
         else:
-            NotImplemented
+            return NotImplemented
 
     def __str__(self):
         if self.im == Rational(0):
@@ -185,35 +186,35 @@ class Element:
     def __mul__(self, other: 'Element') -> 'Element':
         return Product(self, other)
 
-    def __sub__(self, other: 'Element') -> 'Element':
-        return self + Monomial(Rational(-1), []) * other
+    def __rmul__(self, other):
+        if isinstance(other, Complex):
+            return Monomial(other) * self
+        else:
+            return NotImplemented
+
+    def __neg__(self):
+        return Complex(-1) * self
 
     def __pow__(self, power, modulo=None):
         return Product(*(self for _ in range(power)))
 
     @abstractmethod
-    def __str__(self):
-        pass
+    def __str__(self) -> str: ...
 
     @abstractmethod
-    def __cmp__(self, other):
-        pass
+    def __cmp__(self, other): ...
 
     @abstractmethod
-    def signature(self) -> Hashable:
-        pass
+    def signature(self) -> Hashable: ...
 
     @abstractmethod
-    def _determine_reduced(self) -> bool:
-        pass
+    def _determine_reduced(self) -> bool: ...
 
     @abstractmethod
-    def reduce(self) -> 'Element':
-        pass
+    def reduce(self) -> 'Element': ...
 
     @abstractmethod
-    def canonicalize(self) -> 'Element':
-        pass
+    def canonicalize(self) -> 'Element': ...
 
 
 class Monomial(Element):
@@ -224,6 +225,7 @@ class Monomial(Element):
         super().__init__()
 
     def __eq__(self, other):
+        #  print("This is apparently meant to mean mathematical equality")
         if not isinstance(other, Monomial):
             return False
         return self.coefficient == other.coefficient and self.reduce().signature() == other.reduce().signature()
@@ -236,19 +238,17 @@ class Monomial(Element):
             raise Exception("Using the signature of a non reduced element is not good.")
         return self.simple_factors
 
-    def __add__(self, other):
-        return Sum(self, other)
-
     @overload
     def __mul__(self, other: 'Monomial') -> 'Monomial': ...
 
     def __mul__(self, other):
         if isinstance(other, Monomial):
             return Monomial(self.coefficient * other.coefficient, self.simple_factors + other.simple_factors)
-        return Product(self, other)
+        else:
+            return super().__mul__(other)
 
     def __cmp__(self, other):
-        pass
+        return NotImplemented
 
     def _determine_reduced(self):
         # Canonical form for any scalar a, including 0 is Monomial(coefficient=a, simple_factors=())
@@ -265,7 +265,7 @@ class Monomial(Element):
         if self.is_reduced:
             return self
         if self.coefficient == 0:
-            return Monomial(Complex(0), [])
+            return Monomial(Complex(0))
         new_factors = []
         current_index, current_exponent = self.simple_factors[0][0], 0
         for i in range(len(self.simple_factors)):
@@ -316,11 +316,11 @@ class Monomial(Element):
                 string += basisVectors[index]["symbol"]
             else:
                 string += basisVectors[index]["symbol"] + "^{" + str(exponent) + "}"
-        if self.coefficient == Rational(1) and string != "":
+        if self.coefficient == Complex(1) and string != "":
             return string
         if string == "":
             return latex(self.coefficient)
-        return latex(self.coefficient) + " " + string
+        return str(self.coefficient) + " " + string
 
 
 class Sum(Element):
@@ -335,13 +335,11 @@ class Sum(Element):
     def __add__(self, other: Element):
         if isinstance(other, Sum):
             return Sum(*self.summands, *other.summands)
-        return Sum(*self.summands, other)
-
-    def __mul__(self, other):
-        return Product(*[self, other])
+        else:
+            return Sum(*self.summands, other)
 
     def __cmp__(self, other):
-        raise NotImplementedError
+        return NotImplemented
 
     def signature(self):
         return tuple(summand.signature() for summand in self.summands)
@@ -371,7 +369,7 @@ class Sum(Element):
         if self.is_reduced:
             return self
         if len(self.summands) == 0:
-            return Monomial(Complex(0), [])
+            return Monomial(Complex(0))
         # Check if single element
         if len(self.summands) == 1:
             return self.summands[0].reduce()
@@ -419,9 +417,6 @@ class Product(Element):
         self.factors: list[Element] = list(factors)
         super().__init__()
 
-    def __add__(self, other):
-        return Sum(self, other)
-
     @overload
     def __mul__(self, other: 'Product') -> 'Product': ...
 
@@ -431,7 +426,7 @@ class Product(Element):
         return Product(*(self.factors + [other]))
 
     def __cmp__(self, other):
-        raise NotImplementedError
+        return NotImplemented
 
     def signature(self):
         return tuple(factor.signature() for factor in self.factors)
@@ -512,23 +507,15 @@ e13 = Monomial(Complex(1), [(7, 1)])
 
 
 # 'Dual' elements
-H1 = Monomial(Complex(Rational(1,9))) * h1 + Monomial(Complex(1/18)) * h2
-H2 = Monomial(Complex(1/18)) * h1 + Monomial(Complex(1/9)) * h2
-E12 = Monomial(Complex(1/6)) * e12
-E23 = Monomial(Complex(1/6)) * e23
-E13 = Monomial(Complex(1/6)) * e13
-E21 = Monomial(Complex(1/6)) * e21
-E32 = Monomial(Complex(1/6)) * e32
-E31 = Monomial(Complex(1/6)) * e31
-
-
-# E12 H1 = H1 E12 - [H1,E12]
-# 5 3 -> 3 5 - noncommutative_part[3][5]
-# noncommutative_part is like ad
-minus = Monomial(Complex(-1))
-noncommutative_part = [[Monomial(Complex(0)) for _ in range(len(basisVectors))]]
-#noncommutative_part[0][2] = minus * e31
-#noncommutative_part[0][3] = None #  Muss ich noch ausrechnen
+H1 = Complex(Rational(1, 9)) * h1 + Complex(Rational(1, 18)) * h2
+H2 = Complex(Rational(1, 18)) * h1 + Complex(Rational(1, 9)) * h2
+asixth = Complex(Rational(1, 6))
+E12 = asixth * e12
+E23 = asixth * e23
+E13 = asixth * e13
+E21 = asixth * e21
+E32 = asixth * e32
+E31 = asixth * e31
 
 
 def reduced_casimir_second_order():
@@ -567,4 +554,4 @@ if __name__ == "__main__":
     b = Complex(1,1)
     print(b == e)
     print(e**2)
-    print(3* e )
+    print(3 * e)
