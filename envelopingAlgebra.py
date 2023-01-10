@@ -1,99 +1,12 @@
+import abc
 import copy
 import numbers
 from abc import abstractmethod
 from functools import reduce
 from collections import Counter, defaultdict
-from typing import Iterable, Tuple, Hashable, overload
+from typing import Iterable, Tuple, Hashable, overload, Dict, List
 import numpy as np
 from sympy import Rational, latex, sqrt
-
-
-def generate_sl(n: int):
-    basis = []
-    # Ys
-    for off_dagiagonal in range(1, n):
-        for k in range(n - off_dagiagonal):
-            row, column = k + off_dagiagonal, k
-            E_ij = np.zeros((n, n))
-            E_ij[row, column] = 1.
-            basis.append({"matrix": E_ij,
-                          "symbol": "E_{" + str(row + 1) + str(column + 1) + "}",
-                          "ones_index": (row, column)})
-    # Hs
-    for i in range(0, n - 1):
-        H_i = np.zeros((n, n))
-        H_i[i, i], H_i[i + 1, i + 1] = 1., -1.
-        basis.append({"matrix": H_i,
-                      "symbol": "H_{" + str(i + 1) + "}",
-                      "ones_index": (i, i)})
-    # Xs
-    for off_dagiagonal in range(1, n):
-        for k in range(n - off_dagiagonal):
-            row, column = k, k + off_dagiagonal
-            E_ij = np.zeros((n, n))
-            E_ij[row, column] = 1.
-            basis.append({"matrix": E_ij,
-                          "symbol": "E_{" + str(row + 1) + str(column + 1) + "}",
-                          "ones_index": (row, column)})
-    return basis
-
-
-def generate_standard_sl(n: int):
-    basis = []
-    # Hs
-    for i in range(0, n - 1):
-        H_i = np.zeros((n, n))
-        H_i[i, i], H_i[i + 1, i + 1] = 1., -1.
-        basis.append({"matrix": H_i,
-                      "symbol": "H_{" + str(i + 1) + "}",
-                      "ones_index": (i, i)})
-    # Xs
-    for off_dagiagonal in range(1, n):
-        for k in range(n - off_dagiagonal):
-            row, column = k, k + off_dagiagonal
-            E_ij = np.zeros(shape=(n, n))
-            E_ij[row, column] = 1.
-            basis.append({"matrix": E_ij,
-                          "symbol": "E_{" + str(row + 1) + str(column + 1) + "}",
-                          "ones_index": (row, column)})
-    # Ys
-    for off_dagiagonal in range(1, n):
-        for k in range(n - off_dagiagonal):
-            row, column = k + off_dagiagonal, k
-            E_ij = np.zeros(shape=(n, n))
-            E_ij[row, column] = 1.
-            basis.append({"matrix": E_ij,
-                          "symbol": "E_{" + str(row + 1) + str(column + 1) + "}",
-                          "ones_index": (row, column)})
-    return basis
-
-
-def generate_ad_action_matrices(basisVectors):
-    ad_matrices = []
-    for i in range(len(basisVectors)):
-        ad_i = np.zeros(shape=(len(basisVectors), len(basisVectors)))
-        for column in range(len(basisVectors)):
-            m = basisVectors[i]["matrix"] @ basisVectors[column]["matrix"] \
-                - basisVectors[column]["matrix"] @ basisVectors[i]["matrix"]
-            for row in range(len(basisVectors)):
-                ad_i[row, column] = m[basisVectors[row]["ones_index"]]
-                m = m - ad_i[row, column] * basisVectors[row]["matrix"]  # maybe this fixes it
-        ad_matrices.append(ad_i)
-    return ad_matrices
-
-
-def generate_ad_action_matrix_index_to_element(basisVectors):
-    ad = [[Monomial(Complex(0)) for _ in range(len(basisVectors))] for _ in range(len(basisVectors))]
-    for i in range(len(basisVectors)):
-        for j in range(len(basisVectors)):
-            ad_ij = basisVectors[i]["matrix"] @ basisVectors[j]["matrix"] \
-                    - basisVectors[j]["matrix"] @ basisVectors[i]["matrix"]
-            for vector_index in range(len(basisVectors)):
-                row, column = basisVectors[vector_index]["ones_index"]
-                ad[i][j] += Monomial(Complex(ad_ij[row, column]), [(vector_index, 1)])
-                ad_ij = ad_ij - ad_ij[row, column] * basisVectors[vector_index]["matrix"]
-            ad[i][j] = ad[i][j].reduce()
-    return ad
 
 
 class Complex:
@@ -176,14 +89,16 @@ class Complex:
         return Complex(self.re, - self.im)
 
 
-class Element:
+class Element(abc.ABC):
 
     def __init__(self):
         self.is_reduced = self._determine_reduced()
 
-    @abstractmethod
     def __add__(self, other: 'Element') -> 'Element':
         return Sum(self, other)
+
+    def __neg__(self):
+        return Complex(-1) * self
 
     def __sub__(self, other: 'Element') -> 'Element':
         return self + - other
@@ -197,17 +112,11 @@ class Element:
         else:
             return NotImplemented
 
-    def __neg__(self):
-        return Complex(-1) * self
-
     def __pow__(self, power, modulo=None):
         return Product(*(self for _ in range(power)))
 
     @abstractmethod
     def __str__(self) -> str: ...
-
-    @abstractmethod
-    def __cmp__(self, other): ...
 
     @abstractmethod
     def signature(self) -> Hashable: ...
@@ -221,6 +130,9 @@ class Element:
     @abstractmethod
     def canonicalize(self) -> 'Element': ...
 
+    # @abstractmethod
+    # def replace(self) -> 'Element': ...
+
 
 class Monomial(Element):
 
@@ -228,20 +140,6 @@ class Monomial(Element):
         self.coefficient = coefficient
         self.simple_factors: Tuple[Tuple[int, int], ...] = tuple(simple_factors)
         super().__init__()
-
-    def __eq__(self, other):
-        #  print("This is apparently meant to mean mathematical equality")
-        if not isinstance(other, Monomial):
-            return False
-        return self.coefficient == other.coefficient and self.reduce().signature() == other.reduce().signature()
-
-    def degree(self):
-        return sum(exponent for _, exponent in self.simple_factors)
-
-    def signature(self):
-        if not self.is_reduced:
-            raise Exception("Using the signature of a non reduced element is not good.")
-        return self.simple_factors
 
     @overload
     def __mul__(self, other: 'Monomial') -> 'Monomial': ...
@@ -252,11 +150,35 @@ class Monomial(Element):
         else:
             return super().__mul__(other)
 
-    def __cmp__(self, other):
-        return NotImplemented
+    # This is not the best way to print the monomials, since this depends on the variable "basisVectors"
+    # from outer scope. But I don't want to introduce the basis to each element.
+    def __str__(self):
+        string = ""
+        for index, exponent in self.simple_factors:
+            if exponent == 1:
+                string += basisVectors[index]["symbol"]
+            else:
+                string += basisVectors[index]["symbol"] + "^{" + str(exponent) + "}"
+        if self.coefficient == Complex(1) and string != "":
+            return string
+        if string == "":
+            return latex(self.coefficient)
+        return str(self.coefficient) + " " + string
+
+    # Equality is specific to Monomials
+    def __eq__(self, other):
+        #  print("This is apparently meant to mean mathematical equality")
+        if not isinstance(other, Monomial):
+            return False
+        return self.coefficient == other.coefficient and self.reduce().signature() == other.reduce().signature()
+
+    def signature(self):
+        if not self.is_reduced:
+            raise Exception("Using the signature of a non reduced element is not good.")
+        return self.simple_factors
 
     def _determine_reduced(self):
-        # Canonical form for any scalar a, including 0 is Monomial(coefficient=a, simple_factors=())
+        # Canonical form for any scalar c, including 0 is Monomial(coefficient=c, simple_factors=())
         if self.coefficient == 0 and len(self.simple_factors) > 0:
             return False
         if any(exponent == 0 for _, exponent in self.simple_factors):
@@ -266,7 +188,10 @@ class Monomial(Element):
                 return False
         return True
 
-    def reduce(self) -> 'Monomial':
+    @overload
+    def reduce(self) -> 'Monomial': ...
+
+    def reduce(self):
         if self.is_reduced:
             return self
         if self.coefficient == 0:
@@ -292,6 +217,8 @@ class Monomial(Element):
             return self
         factor_index, not_determined = 0, True
         for i in range(len(self.simple_factors)-1):
+            # At this point, the ordering of the basis becomes relevant. So far I defined the ordering in terms of the
+            # order of the elements in basisVectors. This is not optimal and should be abstracted away.
             if not_determined and self.simple_factors[i][0] > self.simple_factors[i+1][0]:
                 factor_index, not_determined = i, False
         if not_determined:
@@ -314,18 +241,8 @@ class Monomial(Element):
         element = Product(*new_factors).reduce()
         return element.canonicalize().reduce()
 
-    def __str__(self):
-        string = ""
-        for index, exponent in self.simple_factors:
-            if exponent == 1:
-                string += basisVectors[index]["symbol"]
-            else:
-                string += basisVectors[index]["symbol"] + "^{" + str(exponent) + "}"
-        if self.coefficient == Complex(1) and string != "":
-            return string
-        if string == "":
-            return latex(self.coefficient)
-        return str(self.coefficient) + " " + string
+    def degree(self):
+        return sum(exponent for _, exponent in self.simple_factors)
 
 
 class Sum(Element):
@@ -343,8 +260,8 @@ class Sum(Element):
         else:
             return Sum(*self.summands, other)
 
-    def __cmp__(self, other):
-        return NotImplemented
+    def __str__(self):
+        return reduce(lambda a, b: a + " + " + b, map(str, self.summands))
 
     def signature(self):
         return tuple(summand.signature() for summand in self.summands)
@@ -412,9 +329,6 @@ class Sum(Element):
             return self.reduce().canonicalize()
         return Sum(*map(lambda e: e.canonicalize(), self.summands)).reduce()
 
-    def __str__(self):
-        return reduce(lambda a, b: a + " + " + b, map(str, self.summands))
-
 
 class Product(Element):
 
@@ -430,8 +344,8 @@ class Product(Element):
             return Product(*self.factors, *other.factors)
         return Product(*(self.factors + [other]))
 
-    def __cmp__(self, other):
-        return NotImplemented
+    def __str__(self):
+        return reduce(lambda a, b: "(" + a + ") (" + b + ")", map(str, self.factors))
 
     def signature(self):
         return tuple(factor.signature() for factor in self.factors)
@@ -490,11 +404,113 @@ class Product(Element):
         raise Exception("A product should never be reduced!")
         #  return Product(*map(lambda e: e.canonicalize(), self.factors)).reduce()
 
-    def __str__(self):
-        return reduce(lambda a, b: "(" + a + ") (" + b + ")", map(str, self.factors))
+
+def generate_sl(n: int):
+    basis = []
+    # Ys
+    for off_diagonal in range(1, n):
+        for k in range(n - off_diagonal):
+            row, column = k + off_diagonal, k
+            e_ij = np.zeros((n, n))
+            e_ij[row, column] = 1.
+            basis.append({"matrix": e_ij,
+                          "symbol": "E_{" + str(row + 1) + str(column + 1) + "}",
+                          "ones_index": (row, column)})
+    # Hs
+    for i in range(0, n - 1):
+        h_i = np.zeros((n, n))
+        h_i[i, i], h_i[i + 1, i + 1] = 1., -1.
+        basis.append({"matrix": h_i,
+                      "symbol": "H_{" + str(i + 1) + "}",
+                      "ones_index": (i, i)})
+    # Xs
+    for off_diagonal in range(1, n):
+        for k in range(n - off_diagonal):
+            row, column = k, k + off_diagonal
+            e_ij = np.zeros((n, n))
+            e_ij[row, column] = 1.
+            basis.append({"matrix": e_ij,
+                          "symbol": "E_{" + str(row + 1) + str(column + 1) + "}",
+                          "ones_index": (row, column)})
+    return basis
 
 
-basisVectors = generate_sl(3)
+def generate_standard_sl(n: int):
+    basis = []
+    # Hs
+    for i in range(0, n - 1):
+        H_i = np.zeros((n, n))
+        H_i[i, i], H_i[i + 1, i + 1] = 1., -1.
+        basis.append({"matrix": H_i,
+                      "symbol": "H_{" + str(i + 1) + "}",
+                      "ones_index": (i, i)})
+    # Xs
+    for off_diagonal in range(1, n):
+        for k in range(n - off_diagonal):
+            row, column = k, k + off_diagonal
+            E_ij = np.zeros(shape=(n, n))
+            E_ij[row, column] = 1.
+            basis.append({"matrix": E_ij,
+                          "symbol": "E_{" + str(row + 1) + str(column + 1) + "}",
+                          "ones_index": (row, column)})
+    # Ys
+    for off_diagonal in range(1, n):
+        for k in range(n - off_diagonal):
+            row, column = k + off_diagonal, k
+            E_ij = np.zeros(shape=(n, n))
+            E_ij[row, column] = 1.
+            basis.append({"matrix": E_ij,
+                          "symbol": "E_{" + str(row + 1) + str(column + 1) + "}",
+                          "ones_index": (row, column)})
+    return basis
+
+
+def generate_ad_action_matrices(basisVectors) -> List[np.ndarray]:
+    ad_matrices = []
+    for i in range(len(basisVectors)):
+        ad_i = np.zeros(shape=(len(basisVectors), len(basisVectors)))
+        for column in range(len(basisVectors)):
+            m = basisVectors[i]["matrix"] @ basisVectors[column]["matrix"] \
+                - basisVectors[column]["matrix"] @ basisVectors[i]["matrix"]
+            for row in range(len(basisVectors)):
+                ad_i[row, column] = m[basisVectors[row]["ones_index"]]
+                m = m - ad_i[row, column] * basisVectors[row]["matrix"]  # maybe this fixes it
+        ad_matrices.append(ad_i)
+    return ad_matrices
+
+
+def generate_ad_action_matrix_index_to_element(basisVectors) -> List[List[Element]]:
+    ad = [[Monomial(Complex(0)) for _ in range(len(basisVectors))] for _ in range(len(basisVectors))]
+    for i in range(len(basisVectors)):
+        for j in range(len(basisVectors)):
+            ad_ij = basisVectors[i]["matrix"] @ basisVectors[j]["matrix"] \
+                    - basisVectors[j]["matrix"] @ basisVectors[i]["matrix"]
+            for vector_index in range(len(basisVectors)):
+                row, column = basisVectors[vector_index]["ones_index"]
+                ad[i][j] += Monomial(Complex(ad_ij[row, column]), [(vector_index, 1)])
+                ad_ij = ad_ij - ad_ij[row, column] * basisVectors[vector_index]["matrix"]
+            ad[i][j] = ad[i][j].reduce()
+    return ad
+
+
+def generate_z_basis(n: int):
+    pass
+
+
+def generate_ad_action_for_zs(z_basis):
+    pass
+
+
+def generate_xy_basis(n: int):
+    pass
+
+
+def generate_ad_action(xy_basis):
+    pass
+
+
+n = 3
+basisVectors = generate_sl(n)
 ad = generate_ad_action_matrix_index_to_element(basisVectors)
 
 # Regular elements
@@ -514,13 +530,13 @@ e13 = Monomial(Complex(1), [(7, 1)])
 # 'Dual' elements
 H1 = Complex(Rational(1, 9)) * h1 + Complex(Rational(1, 18)) * h2
 H2 = Complex(Rational(1, 18)) * h1 + Complex(Rational(1, 9)) * h2
-asixth = Complex(Rational(1, 6))
-E12 = asixth * e12
-E23 = asixth * e23
-E13 = asixth * e13
-E21 = asixth * e21
-E32 = asixth * e32
-E31 = asixth * e31
+sixth = Complex(Rational(1, 6))
+E12 = sixth * e12
+E23 = sixth * e23
+E13 = sixth * e13
+E21 = sixth * e21
+E32 = sixth * e32
+E31 = sixth * e31
 
 
 def reduced_casimir_second_order():
@@ -532,7 +548,7 @@ def reduced_casimir_second_order():
 
 
 def reduced_casimir_third_order():
-    casimir_3 = Monomial(Complex(10)) * (E12*E23*E31 - E12*H1*E21 + E12*H2*E21
+    casimir_3 = 10 * (E12*E23*E31 - E12*H1*E21 + E12*H2*E21
                                           - E23*E32*H1 + E23*E32*H2 + E23*E31*E12 - E23*H2*E32
                                           + E12*E32*E21 + E13*E31*H1 - E13*H2*E31
                                           - E21*E12*H1 + E21*E12*H2 + E21*E13*E32 + E21*H1*E12
@@ -543,6 +559,7 @@ def reduced_casimir_third_order():
     reduced_casimir_3 = casimir_3.reduce()
     print(reduced_casimir_3)
     return reduced_casimir_3
+
 
 if __name__ == "__main__":
     ads = generate_ad_action_matrices(basisVectors)
@@ -560,3 +577,4 @@ if __name__ == "__main__":
     print(b == e)
     print(e**2)
     print(3 * e)
+    replacement = Dict[int, Element]
