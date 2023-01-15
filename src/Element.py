@@ -5,9 +5,6 @@ from typing import Hashable
 from sympy import Rational
 
 from src.Complex import Complex
-from src.Monomial import Monomial
-from src.Product import Product
-from src.Sum import Sum
 
 
 class Element(abc.ABC):
@@ -16,6 +13,7 @@ class Element(abc.ABC):
         self.is_reduced = self._determine_reduced()
 
     def __add__(self, other: 'Element') -> 'Element':
+        from src.Sum import Sum
         return Sum(self, other)
 
     def __neg__(self):
@@ -25,9 +23,11 @@ class Element(abc.ABC):
         return self + - other
 
     def __mul__(self, other: 'Element') -> 'Element':
+        from src.Product import Product
         return Product(self, other)
 
     def __rmul__(self, other):
+        from src.Monomial import Monomial
         if isinstance(other, Complex):
             return Monomial(other) * self
         elif isinstance(other, Rational):
@@ -40,6 +40,7 @@ class Element(abc.ABC):
             return NotImplemented
 
     def __pow__(self, power, modulo=None):
+        from .Product import Product
         return Product(*(self for _ in range(power)))
 
     @abc.abstractmethod
@@ -62,5 +63,6 @@ class Element(abc.ABC):
     def canonicalize(self) -> 'Element':
         ...
 
-    # @abstractmethod
-    # def replace(self) -> 'Element': ...
+    # @abc.abstractmethod
+    # def replace(self) -> 'Element':
+    #     ...

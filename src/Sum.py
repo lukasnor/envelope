@@ -2,10 +2,8 @@ from collections import Counter, defaultdict
 from functools import reduce
 from typing import overload, Dict, Tuple
 
-from src.BasisVector import BasisVector
 from src.Complex import Complex
 from src.Element import Element
-from src.Monomial import Monomial
 
 
 class Sum(Element):
@@ -31,6 +29,7 @@ class Sum(Element):
         return tuple(summand.signature() for summand in self.summands)
 
     def _determine_reduced(self):
+        from src.Monomial import Monomial
         # Check if empty or single element
         if len(self.summands) < 2:
             return False
@@ -52,6 +51,7 @@ class Sum(Element):
         return True
 
     def reduce(self):
+        from src.Monomial import Monomial
         if self.is_reduced:
             return self
         if len(self.summands) == 0:
@@ -80,6 +80,7 @@ class Sum(Element):
         # Group monomials with the same signature
         # Use the signature as the key in a dict, and the coefficient as the value, adding coefficients of terms with
         # the same signature
+        from src.BasisVector import BasisVector
         d: Dict[Tuple[Tuple[BasisVector, int]], Complex] = defaultdict(lambda: Complex(0))
         for summand in self.summands:
             assert isinstance(summand, Monomial)

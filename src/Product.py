@@ -4,8 +4,6 @@ from typing import overload
 
 from src.Complex import Complex
 from src.Element import Element
-from src.Monomial import Monomial
-from src.Sum import Sum
 
 
 class Product(Element):
@@ -33,6 +31,8 @@ class Product(Element):
         return False
 
     def reduce(self):
+        from src.Monomial import Monomial
+        from src.Sum import Sum
         if self.is_reduced:
             return self
         # Check if empty product

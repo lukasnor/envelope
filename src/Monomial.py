@@ -3,15 +3,13 @@ from typing import Iterable, Tuple, overload
 from src.BasisVector import BasisVector
 from src.Complex import Complex
 from src.Element import Element
-from src.Product import Product
-from src.Sum import Sum
 
 
 class Monomial(Element):
 
-    def __init__(self, coefficient: Complex, simple_factors: Iterable[Tuple['BasisVector', int]] = tuple([])):
+    def __init__(self, coefficient: Complex, simple_factors: Iterable[Tuple[BasisVector, int]] = tuple([])):
         self.coefficient = coefficient
-        self.simple_factors: Tuple[Tuple['BasisVector', int], ...] = tuple(simple_factors)
+        self.simple_factors: Tuple[Tuple[BasisVector, int], ...] = tuple(simple_factors)
         super().__init__()
 
     @overload
@@ -47,7 +45,7 @@ class Monomial(Element):
             return False
         return self.coefficient == other.coefficient and self.reduce().signature() == other.reduce().signature()
 
-    def signature(self) -> Tuple[Tuple['BasisVector', int]]:
+    def signature(self) -> Tuple[Tuple[BasisVector, int]]:
         if not self.is_reduced:
             raise Exception("Using the signature of a non reduced element is not good.")
         return self.simple_factors
@@ -74,7 +72,7 @@ class Monomial(Element):
         if self.coefficient == 0:
             return Monomial(Complex(0))
         new_factors = []
-        current_vector: 'BasisVector' = self.simple_factors[0][0]
+        current_vector: BasisVector = self.simple_factors[0][0]
         current_exponent: int = 0
         for vector, exponent in self.simple_factors:
             if vector == current_vector:
@@ -88,6 +86,8 @@ class Monomial(Element):
         return Monomial(self.coefficient, tuple(new_factors))
 
     def canonicalize(self):
+        from src.Product import Product
+        from src.Sum import Sum
         if not self.is_reduced:
             return self.reduce().canonicalize()
         if len(self.simple_factors) < 2:
@@ -101,7 +101,7 @@ class Monomial(Element):
                 break  # an index has been found
         if not_determined:
             return self
-        new_factors: ['Element'] = [Monomial(self.coefficient, self.simple_factors[:factor_index])]
+        new_factors: [Element] = [Monomial(self.coefficient, self.simple_factors[:factor_index])]
         # v^n w^k = w v^n w^k-1 - (\sum_l=0^n v^l ad_w(v) v^n-1-l) w^k-1
         v, n = self.simple_factors[factor_index]
         w, k = self.simple_factors[factor_index + 1]

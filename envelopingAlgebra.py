@@ -1,7 +1,7 @@
 from typing import Dict, List
 
 import numpy as np
-from sympy import Rational
+from sympy import Rational, Matrix
 
 from src.BasisVector import BasisVector
 from src.Complex import Complex
@@ -210,14 +210,15 @@ if __name__ == "__main__":
     E32 = sixth * e23
     E31 = sixth * e13
 
-    # ads = generate_ad_action_matrices(basis)
-    # k = np.array([[np.trace(ads[i] @ ads[j]) for j in range(len(basis))] for i in range(len(basis))])
+    ads = generate_ad_action_matrices(basis)
+    k = np.array([[np.trace(ads[i] @ ads[j]) for j in range(len(basis))] for i in range(len(basis))], dtype="int")
+    K = Matrix(k)
     # e = e12 * e12 * h1
     # print(e)
     # print(e.canonicalize())
-    # c = reduced_casimir_second_order()
-    # cc = c.canonicalize()
-    # print(cc)
+    c = reduced_casimir_third_order()
+    cc = c.canonicalize()
+    print(cc)
     # one = Complex(1, 0)
     # i = Complex(0, 1)
     # e = one + i*one

@@ -1,11 +1,8 @@
 import functools
-from typing import Tuple
+from typing import Tuple, TYPE_CHECKING
 
 import numpy as np
-
-from src.Complex import Complex
 from src.Element import Element
-from src.Monomial import Monomial
 
 
 @functools.total_ordering  # Lazy, but computationally costly, implementation of le, ge, lt, gt, ne, eq
@@ -32,16 +29,24 @@ class BasisVector:
     # TODO: Decide if preferred functionality or just hacky. Why not inherit from Element alltogether?
     # The only sensible way to add to a BasisVector is to convert it to an element and try again
     def __add__(self, other):
+        from src.Complex import Complex
+        from src.Monomial import Monomial
         return Monomial(Complex(1), [(self, 1)]) + other
 
     def __radd__(self, other):
+        from src.Complex import Complex
+        from src.Monomial import Monomial
         return other + Monomial(Complex(1), [(self, 1)])
 
     # The only sensible way to multiply to a BasisVector is to convert it to an element and try again
     def __mul__(self, other):
+        from src.Complex import Complex
+        from src.Monomial import Monomial
         return Monomial(Complex(1), [(self, 1)]) * other
 
     def __rmul__(self, other):
+        from src.Complex import Complex
+        from src.Monomial import Monomial
         return other * Monomial(Complex(1), [(self, 1)])
 
     def __str__(self):
@@ -61,6 +66,7 @@ class BasisVector:
 
     def __hash__(self):
         return self.index
+
 
     # This defines the ad action of each basis vector and is to be determined
     def ad(self, other: 'BasisVector') -> Element:
