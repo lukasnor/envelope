@@ -3,7 +3,7 @@ from functools import reduce
 from typing import overload
 
 from src.Complex import Complex
-from src.Element import Element
+from src.Element import Element, Replacement
 
 
 class Product(Element):
@@ -83,3 +83,10 @@ class Product(Element):
             return self.reduce().canonicalize().reduce()
         raise Exception("A product should never be reduced!")
         # return Product(*map(lambda e: e.canonicalize(), self.factors)).reduce()
+
+    @overload
+    def replace(self, replacement: Replacement) -> 'Product':
+        ...
+
+    def replace(self, replacement: Replacement) -> Element:
+        return Product(*(factor.replace(replacement) for factor in self.factors))

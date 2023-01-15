@@ -1,8 +1,8 @@
-from typing import Iterable, Tuple, overload
+from typing import Iterable, Tuple, overload, List, TYPE_CHECKING
 
 from src.BasisVector import BasisVector
 from src.Complex import Complex
-from src.Element import Element
+from src.Element import Element, Replacement
 
 
 class Monomial(Element):
@@ -115,5 +115,19 @@ class Monomial(Element):
         element = Product(*new_factors).reduce()
         return element.canonicalize().reduce()
 
-    def degree(self):
+    if TYPE_CHECKING:
+        from src.Product import Product
+
+    @overload
+    def replace(self, replacement: Replacement) -> 'Product':
+        ...
+
+    def replace(self, replacement: Replacement) -> Element:
+        from src.Product import Product
+        factors: List[Element] = [Monomial(self.coefficient)]
+        for v, e in self.simple_factors:
+            factors.append(replacement[v]**e)
+        return Product(*factors)
+
+    def degree(self) -> int:
         return sum(exponent for _, exponent in self.simple_factors)

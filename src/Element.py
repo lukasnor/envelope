@@ -1,11 +1,14 @@
 import abc
 import numbers
-from typing import Hashable
+from typing import Hashable, Dict, TYPE_CHECKING
 
 from sympy import Rational
 
 from src.Complex import Complex
 
+if TYPE_CHECKING:
+    from src.BasisVector import BasisVector
+Replacement = Dict['BasisVector', 'Element']
 
 class Element(abc.ABC):
 
@@ -40,7 +43,7 @@ class Element(abc.ABC):
             return NotImplemented
 
     def __pow__(self, power, modulo=None):
-        from .Product import Product
+        from src.Product import Product
         return Product(*(self for _ in range(power)))
 
     @abc.abstractmethod
@@ -63,6 +66,6 @@ class Element(abc.ABC):
     def canonicalize(self) -> 'Element':
         ...
 
-    # @abc.abstractmethod
-    # def replace(self) -> 'Element':
-    #     ...
+    @abc.abstractmethod
+    def replace(self, replacement: Replacement) -> 'Element':
+        ...

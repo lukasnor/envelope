@@ -5,7 +5,7 @@ from sympy import Rational, Matrix
 
 from src.BasisVector import BasisVector
 from src.Complex import Complex
-from src.Element import Element
+from src.Element import Element, Replacement
 from src.Monomial import Monomial
 
 
@@ -169,10 +169,10 @@ def generate_z_basis(n: int):
         z_i_bar = BasisVector(symbol="\\bar{z}_{" + str(i + 1) + "}",
                               index=n + i,
                               is_matrix=False)
-        dz_i = BasisVector(symbol="\\frac{\\partial}{\\parial z_{" + str(i + 1) + "}}",
+        dz_i = BasisVector(symbol="\\frac{\\partial}{\\partial z_{" + str(i + 1) + "}}",
                            index=2 * n + i,
                            is_matrix=False)
-        dz_i_bar = BasisVector(symbol="\\frac{\\partial}{\\parial \\bar{z}_{" + str(i + 1) + "}}",
+        dz_i_bar = BasisVector(symbol="\\frac{\\partial}{\\partial \\bar{z}_{" + str(i + 1) + "}}",
                                index=3 * n + i,
                                is_matrix=False)
         basis += [z_i, z_i_bar, dz_i, dz_i_bar]
@@ -301,7 +301,6 @@ if __name__ == "__main__":
     dz1bar = Monomial(Complex(1), [(z_basis[9], 1)])
     dz2bar = Monomial(Complex(1), [(z_basis[10], 1)])
     dz3bar = Monomial(Complex(1), [(z_basis[11], 1)])
-    Replacement = Dict[BasisVector, Element]
     replacement: Replacement = {
         classical_basis[0]: - z1 * dz2 + z2bar * dz1bar,  # Y_1
         classical_basis[1]: - z2 * dz3 + z3bar * dz2bar,  # Y_2
@@ -312,3 +311,6 @@ if __name__ == "__main__":
         classical_basis[6]: - z3 * dz2 + z2bar * dz3bar,  # X_2
         classical_basis[7]: - z3 * dz1 + z1bar * dz3bar  # X_3
     }
+    e = h1**2
+    e = e.reduce().replace(replacement).reduce().canonicalize().sort()
+    print(e)

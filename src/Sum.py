@@ -3,7 +3,7 @@ from functools import reduce
 from typing import overload, Dict, Tuple
 
 from src.Complex import Complex
-from src.Element import Element
+from src.Element import Element, Replacement
 
 
 class Sum(Element):
@@ -91,3 +91,15 @@ class Sum(Element):
         if not self.is_reduced:
             return self.reduce().canonicalize()
         return Sum(*map(lambda e: e.canonicalize(), self.summands)).reduce()
+
+    @overload
+    def replace(self, replacement: Replacement) -> 'Sum':
+        ...
+    def replace(self, replacement: Replacement) -> Element:
+        return Sum(*(summand.replace(replacement) for summand in self.summands))
+
+    def sort(self) -> 'Sum':
+        if not self.is_reduced:
+            raise Exception("Sorting a non-reduced Sum makes no sense")
+        self.summands.sort(key=lambda s: s.degree(), reverse=True)
+        return Sum(*self.summands)
