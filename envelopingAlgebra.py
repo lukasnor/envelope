@@ -144,12 +144,41 @@ def ad_dict(vectors: List[BasisVector]) -> Dict[BasisVector, Dict[BasisVector, E
     return ad_dict
 
 
+def define_ad_action_for_zs(basis):
+    assert len(basis) % 4 == 0
+    n = int(len(basis) / 4)
+    for v in basis:
+        ad_v_dict = {}
+        for w in basis:
+            if w.index == 2 * n + v.index:
+                ad_v_dict[w] = Monomial(Complex(-1))
+            elif w.index == v.index - 2 * n:
+                ad_v_dict[w] = Monomial(Complex(1))
+            else:
+                ad_v_dict[w] = Monomial(Complex(0))
+        v.ad = (lambda d: lambda w: d[w])(ad_v_dict)
+
+
 def generate_z_basis(n: int):
-    pass
-
-
-def generate_ad_action_for_zs(z_basis):
-    pass
+    # 4*n elements in basis
+    basis: List[BasisVector] = []
+    for i in range(n):
+        z_i = BasisVector(symbol="z_{" + str(i + 1) + "}",
+                          index=i,
+                          is_matrix=False)
+        z_i_bar = BasisVector(symbol="\\bar{z}_{" + str(i + 1) + "}",
+                              index=n + i,
+                              is_matrix=False)
+        dz_i = BasisVector(symbol="\\frac{\\partial}{\\parial z_{" + str(i + 1) + "}}",
+                           index=2 * n + i,
+                           is_matrix=False)
+        dz_i_bar = BasisVector(symbol="\\frac{\\partial}{\\parial \\bar{z}_{" + str(i + 1) + "}}",
+                               index=3 * n + i,
+                               is_matrix=False)
+        basis += [z_i, z_i_bar, dz_i, dz_i_bar]
+    basis.sort()
+    define_ad_action_for_zs(basis)
+    return basis
 
 
 def generate_xy_basis(n: int):
@@ -184,20 +213,20 @@ def reduced_casimir_third_order():
 
 if __name__ == "__main__":
     n = 3
-    basis = generate_sl(n)
+    classical_basis = generate_sl(n)
 
     # Regular elements
     # Ys
-    e21 = basis[0]
-    e32 = basis[1]
-    e31 = basis[2]
+    e21 = Monomial(Complex(1), [(classical_basis[0], 1)])
+    e32 = Monomial(Complex(1), [(classical_basis[1], 1)])
+    e31 = Monomial(Complex(1), [(classical_basis[2], 1)])
     # Hs
-    h1 = basis[3]
-    h2 = basis[4]
+    h1 = Monomial(Complex(1), [(classical_basis[3], 1)])
+    h2 = Monomial(Complex(1), [(classical_basis[4], 1)])
     # Xs
-    e12 = basis[5]
-    e23 = basis[6]
-    e13 = basis[7]
+    e12 = Monomial(Complex(1), [(classical_basis[5], 1)])
+    e23 = Monomial(Complex(1), [(classical_basis[6], 1)])
+    e13 = Monomial(Complex(1), [(classical_basis[7], 1)])
 
     # 'Dual' elements
     H1 = Complex(Rational(1, 9)) * h1 + Complex(Rational(1, 18)) * h2
@@ -210,8 +239,10 @@ if __name__ == "__main__":
     E32 = sixth * e23
     E31 = sixth * e13
 
-    ads = generate_ad_action_matrices(basis)
-    k = np.array([[np.trace(ads[i] @ ads[j]) for j in range(len(basis))] for i in range(len(basis))], dtype="int")
+    ads = generate_ad_action_matrices(classical_basis)
+    k = np.array(
+        [[np.trace(ads[i] @ ads[j]) for j in range(len(classical_basis))] for i in range(len(classical_basis))],
+        dtype="int")
     K = Matrix(k)
     # e = e12 * e12 * h1
     # print(e)
@@ -226,7 +257,6 @@ if __name__ == "__main__":
     # print(b == e)
     # print(e**2)
     # print(3 * e)
-    # replacement = Dict[int, Element]
     a = np.array([[0., 1., 0., 0., 0., 0., 0., 0., 0., 0.],
                   [0., 0., 2., 0., 0., 0., 0., 0., 0., 0.],
                   [0., 0., 0., 3., 0., 0., 0., 0., 0., 0.],
@@ -257,3 +287,28 @@ if __name__ == "__main__":
                   [3., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
                   [0., 0., 0., 0., 0., 0., 0., 2., 0., 0.],
                   [0., 2., 0., 0., 0., 0., 0., 0., 0., 0.]])
+
+    z_basis = generate_z_basis(n)
+    z1 = Monomial(Complex(1), [(z_basis[0], 1)])
+    z2 = Monomial(Complex(1), [(z_basis[1], 1)])
+    z3 = Monomial(Complex(1), [(z_basis[2], 1)])
+    z1bar = Monomial(Complex(1), [(z_basis[3], 1)])
+    z2bar = Monomial(Complex(1), [(z_basis[4], 1)])
+    z3bar = Monomial(Complex(1), [(z_basis[5], 1)])
+    dz1 = Monomial(Complex(1), [(z_basis[6], 1)])
+    dz2 = Monomial(Complex(1), [(z_basis[7], 1)])
+    dz3 = Monomial(Complex(1), [(z_basis[8], 1)])
+    dz1bar = Monomial(Complex(1), [(z_basis[9], 1)])
+    dz2bar = Monomial(Complex(1), [(z_basis[10], 1)])
+    dz3bar = Monomial(Complex(1), [(z_basis[11], 1)])
+    Replacement = Dict[BasisVector, Element]
+    replacement: Replacement = {
+        classical_basis[0]: - z1 * dz2 + z2bar * dz1bar,  # Y_1
+        classical_basis[1]: - z2 * dz3 + z3bar * dz2bar,  # Y_2
+        classical_basis[2]: - z1 * dz3 + z3bar * dz1bar,  # Y_3
+        classical_basis[3]: - z1 * dz1 + z2 * dz2 + z1bar * dz1bar - z2bar * dz2bar,  # H_1
+        classical_basis[4]: - z2 * dz2 + z3 * dz3 + z2bar * dz2bar - z3bar * dz3bar,  # H_2
+        classical_basis[5]: - z2 * dz1 + z1bar * dz2bar,  # X_1
+        classical_basis[6]: - z3 * dz2 + z2bar * dz3bar,  # X_2
+        classical_basis[7]: - z3 * dz1 + z1bar * dz3bar  # X_3
+    }
