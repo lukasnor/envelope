@@ -69,3 +69,6 @@ class Element(abc.ABC):
     @abc.abstractmethod
     def replace(self, replacement: Replacement) -> 'Element':
         ...
+
+    def sort(self) -> 'Element':  # Formally "-> Self" but not in Python 3.10 yet
+        return self

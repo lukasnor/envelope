@@ -144,15 +144,16 @@ def ad_dict(vectors: List[BasisVector]) -> Dict[BasisVector, Dict[BasisVector, E
     return ad_dict
 
 
-def define_ad_action_for_zs(basis):
-    assert len(basis) % 4 == 0
-    n = int(len(basis) / 4)
+# For a basis of the form [a, b, c, ..., da, db, dc, ...]
+def define_ad_action_for_differential_operator_basis(basis):
+    assert len(basis) % 2 == 0
+    m = int(len(basis) / 2)
     for v in basis:
         ad_v_dict = {}
         for w in basis:
-            if w.index == 2 * n + v.index:
+            if w.index == m + v.index:
                 ad_v_dict[w] = Monomial(Complex(-1))
-            elif w.index == v.index - 2 * n:
+            elif w.index == v.index - m:
                 ad_v_dict[w] = Monomial(Complex(1))
             else:
                 ad_v_dict[w] = Monomial(Complex(0))
@@ -163,100 +164,75 @@ def generate_z_basis(n: int):
     # 4*n elements in basis
     basis: List[BasisVector] = []
     for i in range(n):
-        z_i = BasisVector(symbol="z_{" + str(i + 1) + "}",
-                          index=i,
+        zi = BasisVector(symbol="z_{" + str(i + 1) + "}",
+                         index=i,
+                         is_matrix=False)
+        zibar = BasisVector(symbol="\\bar{z}_{" + str(i + 1) + "}",
+                            index=n + i,
+                            is_matrix=False)
+        dzi = BasisVector(symbol="\\frac{\\partial}{\\partial z_{" + str(i + 1) + "}}",
+                          index=2 * n + i,
                           is_matrix=False)
-        z_i_bar = BasisVector(symbol="\\bar{z}_{" + str(i + 1) + "}",
-                              index=n + i,
-                              is_matrix=False)
-        dz_i = BasisVector(symbol="\\frac{\\partial}{\\partial z_{" + str(i + 1) + "}}",
-                           index=2 * n + i,
-                           is_matrix=False)
-        dz_i_bar = BasisVector(symbol="\\frac{\\partial}{\\partial \\bar{z}_{" + str(i + 1) + "}}",
-                               index=3 * n + i,
-                               is_matrix=False)
-        basis += [z_i, z_i_bar, dz_i, dz_i_bar]
+        dzibar = BasisVector(symbol="\\frac{\\partial}{\\partial \\bar{z}_{" + str(i + 1) + "}}",
+                             index=3 * n + i,
+                             is_matrix=False)
+        basis += [zi, zibar, dzi, dzibar]
     basis.sort()
-    define_ad_action_for_zs(basis)
+    define_ad_action_for_differential_operator_basis(basis)
     return basis
 
 
 def generate_xy_basis(n: int):
-    pass
+    basis: List[BasisVector] = []
+    for i in range(n):
+        xi = BasisVector(symbol="x_{" + str(i + 1) + "}",
+                         index=i,
+                         is_matrix=False)
+        yi = BasisVector(symbol="y_{" + str(i + 1) + ")",
+                         index=i + n,
+                         is_matrix=False)
+        dxi = BasisVector(symbol="\\frac{\\partial}{\\partial x_{" + str(i + 1) + "}}",
+                          index=i + 2 * n,
+                          is_matrix=False)
+        dyi = BasisVector(symbol="\\frac{\\partial}{\\partial y_{" + str(i + 1) + "}}",
+                          index=i + 3 * n,
+                          is_matrix=False)
+        basis += [xi, yi, dxi, dyi]
+    basis.sort()
+    define_ad_action_for_differential_operator_basis(basis)
+    return basis
 
 
-def generate_ad_action(xy_basis):
-    pass
+def generate_z_by_xy_replacement(z_basis: List[BasisVector], xy_basis: List[BasisVector]) -> Replacement:
+    assert len(z_basis) == len(xy_basis)
+    # assert z_basis.is_sorted() and xy_basis.is_sorted()
+    assert len(z_basis) % 4 == 0
+    n = int(len(z_basis) / 4)
+    replacement = {}
+    I = Complex(0, 1)
+    half = Complex(Rational(1, 2))
+    for j in range(n):
+        xj = Monomial.convert(xy_basis[j])
+        yj = Monomial.convert(xy_basis[n + j])
+        dxj = Monomial.convert(xy_basis[2 * n + j])
+        dyj = Monomial.convert(xy_basis[3 * n + j])
+        # zj -> xj + i yj
+        replacement[z_basis[j]] = xj + I * yj
+        # zjbar -> xj - i yj
+        replacement[z_basis[j + n]] = xj - I * yj
+        # dzj -> 1/2 (dxj - i dyj)
+        replacement[z_basis[j + 2*n]] = half * (dxj - I * dyj)
+        # dzjbar -> 1/2 (dxj + i dyj)
+        replacement[z_basis[j + 3 * n]] = half * (dxj + I * dyj)
+    return replacement
 
 
-def reduced_casimir_second_order():
-    casimir_2 = 12 * H1 * H1 - 6 * H1 * H2 - 6 * H2 * H1 + 12 * H2 * H2 + \
-                6 * (E12 * E21 + E21 * E12 + E13 * E31 + E31 * E13 + E23 * E32 + E32 * E23)
-    reduced_casimir_2 = casimir_2.reduce()
-    print(reduced_casimir_2)
-    return reduced_casimir_2
-
-
-def reduced_casimir_third_order():
-    casimir_3 = 10 * (E12 * E23 * E31 - E12 * H1 * E21 + E12 * H2 * E21
-                      - E23 * E32 * H1 + E23 * E32 * H2 + E23 * E31 * E12 - E23 * H2 * E32
-                      + E12 * E32 * E21 + E13 * E31 * H1 - E13 * H2 * E31
-                      - E21 * E12 * H1 + E21 * E12 * H2 + E21 * E13 * E32 + E21 * H1 * E12
-                      - E32 * E23 * H2 + E32 * E21 * E13 - E32 * H1 * E23 + E32 * H2 * E23
-                      + E31 * E12 * E23 - E31 * E13 * H2 + E31 * H1 * E13
-                      + H1 * E12 * E21 - H1 * E23 * E32 + H1 * E13 * E31 - H1 * E21 * E12 + H1 * H1 * H2 + H1 * H2 * H1 - H1 * H2 * H2
-                      + H2 * E23 * E32 + H2 * E21 * E12 - H2 * E32 * E23 - H2 * E31 * E13 - H2 * H1 * H2 + H2 * H1 * H1 - H2 * H2 * H1)
-    reduced_casimir_3 = casimir_3.reduce()
-    print(reduced_casimir_3)
-    return reduced_casimir_3
-
-
-if __name__ == "__main__":
-    n = 3
-    classical_basis = generate_sl(n)
-
-    # Regular elements
-    # Ys
-    e21 = Monomial(Complex(1), [(classical_basis[0], 1)])
-    e32 = Monomial(Complex(1), [(classical_basis[1], 1)])
-    e31 = Monomial(Complex(1), [(classical_basis[2], 1)])
-    # Hs
-    h1 = Monomial(Complex(1), [(classical_basis[3], 1)])
-    h2 = Monomial(Complex(1), [(classical_basis[4], 1)])
-    # Xs
-    e12 = Monomial(Complex(1), [(classical_basis[5], 1)])
-    e23 = Monomial(Complex(1), [(classical_basis[6], 1)])
-    e13 = Monomial(Complex(1), [(classical_basis[7], 1)])
-
-    # 'Dual' elements
-    H1 = Complex(Rational(1, 9)) * h1 + Complex(Rational(1, 18)) * h2
-    H2 = Complex(Rational(1, 18)) * h1 + Complex(Rational(1, 9)) * h2
-    sixth = Complex(Rational(1, 6))
-    E12 = sixth * e21
-    E23 = sixth * e32
-    E13 = sixth * e31
-    E21 = sixth * e12
-    E32 = sixth * e23
-    E31 = sixth * e13
-
+def matrix_stuff():
     ads = generate_ad_action_matrices(classical_basis)
     k = np.array(
         [[np.trace(ads[i] @ ads[j]) for j in range(len(classical_basis))] for i in range(len(classical_basis))],
         dtype="int")
     K = Matrix(k)
-    # e = e12 * e12 * h1
-    # print(e)
-    # print(e.canonicalize())
-    c = reduced_casimir_third_order()
-    cc = c.canonicalize()
-    print(cc)
-    # one = Complex(1, 0)
-    # i = Complex(0, 1)
-    # e = one + i*one
-    # b = Complex(1, 1)
-    # print(b == e)
-    # print(e**2)
-    # print(3 * e)
     a = np.array([[0., 1., 0., 0., 0., 0., 0., 0., 0., 0.],
                   [0., 0., 2., 0., 0., 0., 0., 0., 0., 0.],
                   [0., 0., 0., 3., 0., 0., 0., 0., 0., 0.],
@@ -288,20 +264,62 @@ if __name__ == "__main__":
                   [0., 0., 0., 0., 0., 0., 0., 2., 0., 0.],
                   [0., 2., 0., 0., 0., 0., 0., 0., 0., 0.]])
 
+
+def reduced_casimir_second_order() -> Element:
+    casimir_2 = 12 * H1 * H1 - 6 * H1 * H2 - 6 * H2 * H1 + 12 * H2 * H2 + \
+                6 * (E12 * E21 + E21 * E12 + E13 * E31 + E31 * E13 + E23 * E32 + E32 * E23)
+    reduced_casimir_2 = casimir_2.reduce()
+    print(reduced_casimir_2)
+    return reduced_casimir_2
+
+
+def reduced_casimir_third_order() -> Element:
+    casimir_3 = 10 * (E12 * E23 * E31 - E12 * H1 * E21 + E12 * H2 * E21
+                      - E23 * E32 * H1 + E23 * E32 * H2 + E23 * E31 * E12 - E23 * H2 * E32
+                      + E12 * E32 * E21 + E13 * E31 * H1 - E13 * H2 * E31
+                      - E21 * E12 * H1 + E21 * E12 * H2 + E21 * E13 * E32 + E21 * H1 * E12
+                      - E32 * E23 * H2 + E32 * E21 * E13 - E32 * H1 * E23 + E32 * H2 * E23
+                      + E31 * E12 * E23 - E31 * E13 * H2 + E31 * H1 * E13
+                      + H1 * E12 * E21 - H1 * E23 * E32 + H1 * E13 * E31 - H1 * E21 * E12 + H1 * H1 * H2 + H1 * H2 * H1 - H1 * H2 * H2
+                      + H2 * E23 * E32 + H2 * E21 * E12 - H2 * E32 * E23 - H2 * E31 * E13 - H2 * H1 * H2 + H2 * H1 * H1 - H2 * H2 * H1)
+    reduced_casimir_3 = casimir_3.reduce()
+    print(reduced_casimir_3)
+    return reduced_casimir_3
+
+
+if __name__ == "__main__":
+    n = 3
+    classical_basis = generate_sl(n)
+
+    # Regular elements
+    # Ys, Hs, Xs
+    e21, e32, e31, h1, h2, e12, e23, e13 = tuple(map(Monomial.convert, classical_basis))
+
+    # 'Dual' elements
+    H1 = Complex(Rational(1, 9)) * h1 + Complex(Rational(1, 18)) * h2
+    H2 = Complex(Rational(1, 18)) * h1 + Complex(Rational(1, 9)) * h2
+    sixth = Complex(Rational(1, 6))
+    E12 = sixth * e21
+    E23 = sixth * e32
+    E13 = sixth * e31
+    E21 = sixth * e12
+    E32 = sixth * e23
+    E31 = sixth * e13
+
+    c = reduced_casimir_second_order()
+    cc = c.canonicalize()
+    print(cc)
+    print()
+
+    # z and z bar elements
     z_basis = generate_z_basis(n)
-    z1 = Monomial(Complex(1), [(z_basis[0], 1)])
-    z2 = Monomial(Complex(1), [(z_basis[1], 1)])
-    z3 = Monomial(Complex(1), [(z_basis[2], 1)])
-    z1bar = Monomial(Complex(1), [(z_basis[3], 1)])
-    z2bar = Monomial(Complex(1), [(z_basis[4], 1)])
-    z3bar = Monomial(Complex(1), [(z_basis[5], 1)])
-    dz1 = Monomial(Complex(1), [(z_basis[6], 1)])
-    dz2 = Monomial(Complex(1), [(z_basis[7], 1)])
-    dz3 = Monomial(Complex(1), [(z_basis[8], 1)])
-    dz1bar = Monomial(Complex(1), [(z_basis[9], 1)])
-    dz2bar = Monomial(Complex(1), [(z_basis[10], 1)])
-    dz3bar = Monomial(Complex(1), [(z_basis[11], 1)])
-    replacement: Replacement = {
+    z1, z2, z3, \
+        z1bar, z2bar, z3bar, \
+        dz1, dz2, dz3, \
+        dz1bar, dz2bar, dz3bar = tuple(map(Monomial.convert, z_basis))
+
+    # How do the sl_3 elements act on complex homogeneous polynomials
+    z_replacement: Replacement = {
         classical_basis[0]: - z1 * dz2 + z2bar * dz1bar,  # Y_1
         classical_basis[1]: - z2 * dz3 + z3bar * dz2bar,  # Y_2
         classical_basis[2]: - z1 * dz3 + z3bar * dz1bar,  # Y_3
@@ -311,6 +329,14 @@ if __name__ == "__main__":
         classical_basis[6]: - z3 * dz2 + z2bar * dz3bar,  # X_2
         classical_basis[7]: - z3 * dz1 + z1bar * dz3bar  # X_3
     }
-    e = h1**2
-    e = e.reduce().replace(replacement).reduce().canonicalize().sort()
-    print(e)
+
+    cc = cc.replace(z_replacement).reduce().canonicalize().sort()
+    print(cc)
+    print()
+
+    # x and y elements
+    xy_basis = generate_xy_basis(n)
+    xy_replacement = generate_z_by_xy_replacement(z_basis, xy_basis)
+
+    cc = cc.replace(xy_replacement).reduce().canonicalize().sort()
+    print(cc)

@@ -98,7 +98,11 @@ class Sum(Element):
     def replace(self, replacement: Replacement) -> Element:
         return Sum(*(summand.replace(replacement) for summand in self.summands))
 
+    @overload
     def sort(self) -> 'Sum':
+        ...
+
+    def sort(self) -> 'Element':
         if not self.is_reduced:
             raise Exception("Sorting a non-reduced Sum makes no sense")
         self.summands.sort(key=lambda s: s.degree(), reverse=True)

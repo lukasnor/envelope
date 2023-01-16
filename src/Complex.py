@@ -82,3 +82,12 @@ class Complex:
 
     def conjugate(self):
         return Complex(self.re, - self.im)
+
+if __name__ == "__main__":
+    one = Complex(1, 0)
+    i = Complex(0, 1)
+    e = one + i*one
+    b = Complex(1, 1)
+    print(b == e)
+    print(e**2)
+    print(3 * e)

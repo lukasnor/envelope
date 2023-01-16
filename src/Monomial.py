@@ -7,6 +7,10 @@ from src.Element import Element, Replacement
 
 class Monomial(Element):
 
+    @classmethod
+    def convert(cls, v: BasisVector) -> 'Monomial':
+        return cls(Complex(1), [(v, 1)])
+
     def __init__(self, coefficient: Complex, simple_factors: Iterable[Tuple[BasisVector, int]] = tuple([])):
         self.coefficient = coefficient
         self.simple_factors: Tuple[Tuple[BasisVector, int], ...] = tuple(simple_factors)
@@ -131,3 +135,9 @@ class Monomial(Element):
 
     def degree(self) -> int:
         return sum(exponent for _, exponent in self.simple_factors)
+
+if __name__ == "__main__":
+    h1 = BasisVector(symbol="Testvektor",
+                     index=0,
+                     is_matrix=False)
+    H1 = Monomial.convert(h1)
