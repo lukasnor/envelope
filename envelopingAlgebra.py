@@ -1,3 +1,5 @@
+import functools
+import itertools
 from typing import Dict, List
 
 import numpy as np
@@ -7,6 +9,7 @@ from src.BasisVector import BasisVector
 from src.Complex import Complex
 from src.Element import Element, Replacement
 from src.Monomial import Monomial
+from src.Sum import Sum
 
 
 # This function defines for a list of basis vectors their ad functions if their matrices describe the ad representation
@@ -86,6 +89,14 @@ def generate_sl(n: int) -> List[BasisVector]:
                          )
             index += 1
     define_ad_action_functions_by_matices(basis)
+    # Give every vector its dual element wrt the killing form
+    ads = generate_ad_action_matrices(basis)
+    killing_form = np.array([[np.trace(ads[i] @ ads[j]) for j in range(len(basis))] for i in range(len(basis))],
+                            dtype="int")
+    killing_form = Matrix(killing_form)  # Convert to Sympy matrix, to get inverse with Rational coefficients
+    k_inv = killing_form.inv()
+    for i in range(len(basis)):
+        basis[i].dual = Sum(*(Monomial(Complex(k_inv[j, i]), [(basis[j], 1)]) for j in range(len(basis)))).reduce()
     return basis
 
 
@@ -188,7 +199,7 @@ def generate_xy_basis(n: int):
         xi = BasisVector(symbol="x_{" + str(i + 1) + "}",
                          index=i,
                          is_matrix=False)
-        yi = BasisVector(symbol="y_{" + str(i + 1) + ")",
+        yi = BasisVector(symbol="y_{" + str(i + 1) + "}",
                          index=i + n,
                          is_matrix=False)
         dxi = BasisVector(symbol="\\frac{\\partial}{\\partial x_{" + str(i + 1) + "}}",
@@ -221,7 +232,7 @@ def generate_z_by_xy_replacement(z_basis: List[BasisVector], xy_basis: List[Basi
         # zjbar -> xj - i yj
         replacement[z_basis[j + n]] = xj - I * yj
         # dzj -> 1/2 (dxj - i dyj)
-        replacement[z_basis[j + 2*n]] = half * (dxj - I * dyj)
+        replacement[z_basis[j + 2 * n]] = half * (dxj - I * dyj)
         # dzjbar -> 1/2 (dxj + i dyj)
         replacement[z_basis[j + 3 * n]] = half * (dxj + I * dyj)
     return replacement
@@ -265,36 +276,7 @@ def matrix_stuff():
                   [0., 2., 0., 0., 0., 0., 0., 0., 0., 0.]])
 
 
-def reduced_casimir_second_order() -> Element:
-    casimir_2 = 12 * H1 * H1 - 6 * H1 * H2 - 6 * H2 * H1 + 12 * H2 * H2 + \
-                6 * (E12 * E21 + E21 * E12 + E13 * E31 + E31 * E13 + E23 * E32 + E32 * E23)
-    reduced_casimir_2 = casimir_2.reduce()
-    print(reduced_casimir_2)
-    return reduced_casimir_2
-
-
-def reduced_casimir_third_order() -> Element:
-    casimir_3 = 10 * (E12 * E23 * E31 - E12 * H1 * E21 + E12 * H2 * E21
-                      - E23 * E32 * H1 + E23 * E32 * H2 + E23 * E31 * E12 - E23 * H2 * E32
-                      + E12 * E32 * E21 + E13 * E31 * H1 - E13 * H2 * E31
-                      - E21 * E12 * H1 + E21 * E12 * H2 + E21 * E13 * E32 + E21 * H1 * E12
-                      - E32 * E23 * H2 + E32 * E21 * E13 - E32 * H1 * E23 + E32 * H2 * E23
-                      + E31 * E12 * E23 - E31 * E13 * H2 + E31 * H1 * E13
-                      + H1 * E12 * E21 - H1 * E23 * E32 + H1 * E13 * E31 - H1 * E21 * E12 + H1 * H1 * H2 + H1 * H2 * H1 - H1 * H2 * H2
-                      + H2 * E23 * E32 + H2 * E21 * E12 - H2 * E32 * E23 - H2 * E31 * E13 - H2 * H1 * H2 + H2 * H1 * H1 - H2 * H2 * H1)
-    reduced_casimir_3 = casimir_3.reduce()
-    print(reduced_casimir_3)
-    return reduced_casimir_3
-
-
-if __name__ == "__main__":
-    n = 3
-    classical_basis = generate_sl(n)
-
-    # Regular elements
-    # Ys, Hs, Xs
-    e21, e32, e31, h1, h2, e12, e23, e13 = tuple(map(Monomial.convert, classical_basis))
-
+def casimir_second_order() -> Element:
     # 'Dual' elements
     H1 = Complex(Rational(1, 9)) * h1 + Complex(Rational(1, 18)) * h2
     H2 = Complex(Rational(1, 18)) * h1 + Complex(Rational(1, 9)) * h2
@@ -306,10 +288,87 @@ if __name__ == "__main__":
     E32 = sixth * e23
     E31 = sixth * e13
 
-    c = reduced_casimir_second_order()
-    cc = c.canonicalize()
-    print(cc)
+    casimir_2 = 12 * H1 * H1 - 6 * H1 * H2 - 6 * H2 * H1 + 12 * H2 * H2 + \
+                6 * (E12 * E21 + E21 * E12 + E13 * E31 + E31 * E13 + E23 * E32 + E32 * E23)
+    return casimir_2.reduce().canonicalize().sort()
+
+
+def casimir_third_order() -> Element:
+    # 'Dual' elements
+    H1 = Complex(Rational(1, 9)) * h1 + Complex(Rational(1, 18)) * h2
+    H2 = Complex(Rational(1, 18)) * h1 + Complex(Rational(1, 9)) * h2
+    sixth = Complex(Rational(1, 6))
+    E12 = sixth * e21
+    E23 = sixth * e32
+    E13 = sixth * e31
+    E21 = sixth * e12
+    E32 = sixth * e23
+    E31 = sixth * e13
+
+    casimir_3 = 10 * (E12 * E23 * E31 - E12 * H1 * E21 + E12 * H2 * E21 + E12 * E21 * H1
+                      - E23 * E32 * H1 + E23 * E32 * H2 + E23 * E31 * E12 - E23 * H2 * E32
+                      + E13 * E32 * E21 + E13 * E31 * H1 - E13 * H2 * E31
+                      - E21 * E12 * H1 + E21 * E12 * H2 + E21 * E13 * E32 + E21 * H1 * E12
+                      - E32 * E23 * H2 + E32 * E21 * E13 - E32 * H1 * E23 + E32 * H2 * E23
+                      + E31 * E12 * E23 - E31 * E13 * H2 + E31 * H1 * E13
+                      + H1 * E12 * E21 - H1 * E23 * E32 + H1 * E13 * E31 - H1 * E21 * E12 + H1 * H1 * H2 + H1 * H2 * H1 - H1 * H2 * H2
+                      + H2 * E23 * E32 + H2 * E21 * E12 - H2 * E32 * E23 - H2 * E31 * E13 - H2 * H1 * H2 + H2 * H1 * H1 - H2 * H2 * H1)
+    return casimir_3.reduce().canonicalize().sort()
+
+
+def casimir(order: int, basis: List[BasisVector]) -> Element:
+    xyzs = itertools.product(basis, repeat=order)
+    matrix = lambda x: x.matrix  # TODO: Give the option to use an arbitrary representation, not just the standard one
+    tr = lambda xyz: Complex(np.trace(functools.reduce(np.ndarray.__matmul__, map(matrix, xyz))))
+    dual = lambda x: x.dual
+    dual_product = lambda xyz: functools.reduce(Element.__mul__, map(dual, xyz))
+    summand = lambda xyz: tr(xyz) * dual_product(xyz)
+    normalisation = 2 * (basis[0].matrix.shape[0])  # 2 * dimension of the representation
+    casimir = normalisation * functools.reduce(Element.__add__, map(summand, xyzs))
+    return casimir.reduce().canonicalize().sort()
+
+
+# TODO: This hangs by a thread
+def cut_off_casimir(cc, z_replacement, xy_replacement):
+    from src.Sum import Sum
+    p = Sum(*cc.summands[-11:]).sort()
+    print(p)
+    t = Sum(*p.summands[:4])
+    print(t)
+    tz = t.replace(z_replacement).reduce().canonicalize().sort()
+    print(tz)
+    tz_prime = Sum(*tz.summands[:56])
+    print(tz_prime)
+    txy = tz_prime.replace(xy_replacement).reduce().canonicalize().sort().group_by_coefficient()
+    print(txy)
+
+
+if __name__ == "__main__":
+    n = 2
+    classical_basis = generate_sl(n)
+    c2 = casimir(order=2, basis=classical_basis)
+    print("2nd order Casimir in sl_2")
+    print(c2)
     print()
+
+    n = 3
+    classical_basis = generate_sl(n)
+    # Regular elements
+    # Ys, Hs, Xs
+    e21, e32, e31, h1, h2, e12, e23, e13 = tuple(map(Monomial.convert, classical_basis))
+
+    c2 = casimir(order=2, basis=classical_basis)
+    print("2nd order Casimir in sl_3")
+    print(c2)
+    print()
+    c3 = casimir(order=3, basis=classical_basis)
+    print("3rd order Casimir in sl_3")
+    print(c3)
+    print()
+
+    print("Test, ob beide Methoden zum Erzeugen der Casimirs das gleiche tun:")
+    print("C2:", (c2 - casimir_second_order()).reduce())
+    print("C3:", (5 * c3 - 3 * casimir_third_order()).reduce())  # At least up to a factor
 
     # z and z bar elements
     z_basis = generate_z_basis(n)
@@ -330,13 +389,32 @@ if __name__ == "__main__":
         classical_basis[7]: - z3 * dz1 + z1bar * dz3bar  # X_3
     }
 
-    cc = cc.replace(z_replacement).reduce().canonicalize().sort()
-    print(cc)
-    print()
-
     # x and y elements
     xy_basis = generate_xy_basis(n)
     xy_replacement = generate_z_by_xy_replacement(z_basis, xy_basis)
 
-    cc = cc.replace(xy_replacement).reduce().canonicalize().sort()
-    print(cc)
+    c2z = c2.replace(z_replacement).reduce().canonicalize()
+    c2xy = c2z.replace(xy_replacement).reduce().canonicalize().sort().group_by_coefficient()
+    c3z = c3.replace(z_replacement).reduce().canonicalize()
+    c3xy = c3z.replace(xy_replacement).reduce().canonicalize().sort().group_by_coefficient()
+    c3xy_corrected = (c3xy + Rational(1, 4) * c2xy).reduce().group_by_coefficient()
+
+    # l = []
+    # for v in classical_basis:
+    #     for w in classical_basis:
+    #         for x in classical_basis:
+    #             tr = np.trace(v.matrix @ w.matrix @ x.matrix)
+    #             if not tr == 0:
+    #                 #print(v, w, x, ":", tr)
+    #                 l.append(tr)
+    # print(len(l))
+    #
+    # l = []
+    # ads = generate_ad_action_matrices(classical_basis)
+    # for v in classical_basis:
+    #     for w in classical_basis:
+    #         for x in classical_basis:
+    #             tr = np.trace(ads[v.index] @ ads[w.index] @ ads[x.index])
+    #             if not tr == 0:
+    #                 #print(v, w, x, ":", tr)
+    #                 l.append(tr)

@@ -107,3 +107,14 @@ class Sum(Element):
             raise Exception("Sorting a non-reduced Sum makes no sense")
         self.summands.sort(key=lambda s: s.degree(), reverse=True)
         return Sum(*self.summands)
+
+    # TODO: Refactor this
+    def group_by_coefficient(self) -> 'Element':
+        if not self.is_reduced:
+            raise Exception("Sorting a non-reduced Sum makes no sense")
+        from src.Monomial import Monomial
+        d: Dict[Complex, 'Element'] = defaultdict(lambda: Monomial(Complex(0)))
+        for summand in self.summands:
+            assert isinstance(summand, Monomial)
+            d[summand.coefficient] += Monomial(Complex(1), summand.simple_factors)
+        return Sum(*(coefficient * element.reduce() for coefficient, element in d.items()))

@@ -12,6 +12,7 @@ class BasisVector:
     # for a canonicalization to work
     # The matrix argument should be used to give a representation to the elements
     # TODO: Abstract away the representation
+    # TODO: Abstract away the adjoint and the dual
     def __init__(self, symbol: str,
                  index: int,
                  is_matrix: bool = False,
@@ -24,6 +25,7 @@ class BasisVector:
         self.ones_index = ones_index
         if self.is_matrix:
             assert self.matrix is not None and self.ones_index is not None
+        self.dual: 'Element' = None
 
     def __str__(self):
         return self.symbol

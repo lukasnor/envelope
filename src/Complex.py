@@ -71,6 +71,9 @@ class Complex:
             return latex(self.re) + " + i"
         return latex(self.re) + " + " + latex(self.im) + " i"
 
+    def __hash__(self):
+        return (self.re.numerator, self.re.denominator, self.im.numerator, self.im.denominator).__hash__()
+
     def __abs__(self):
         return Complex(sqrt(self.re ** 2 + self.im ** 2), 0)
 
@@ -91,3 +94,4 @@ if __name__ == "__main__":
     print(b == e)
     print(e**2)
     print(3 * e)
+    i.__hash__()
