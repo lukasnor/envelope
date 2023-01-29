@@ -1,10 +1,10 @@
-import functools
+from functools import total_ordering
 from typing import Tuple, TYPE_CHECKING
 
 import numpy as np
 
 
-@functools.total_ordering  # Lazy, but computationally costly, implementation of le, ge, lt, gt, ne, eq
+@total_ordering  # Lazy, but computationally costly, implementation of le, ge, lt, gt, ne, eq
 class BasisVector:
 
     # Each basis vector is determined by its index. Equality '==' and hashing depends on the index alone
@@ -47,6 +47,7 @@ class BasisVector:
 
     if TYPE_CHECKING:
         from src.Element import Element
+
     # This defines the ad action of each basis vector and is to be determined
     def ad(self, other: 'BasisVector') -> 'Element':
         pass
