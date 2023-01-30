@@ -317,7 +317,7 @@ def casimir_third_order() -> Element:
     return casimir_3.reduce().canonicalize().sort_by_degree()
 
 
-def casimir(order: int, basis: List[BasisVector]) -> Sum:
+def casimir(order: int, basis: List[BasisVector]) -> Element:
     xyzs = itertools.product(basis, repeat=order)
     matrix = lambda x: x.matrix  # TODO: Give the option to use an arbitrary representation, not just the standard one
     tr = lambda xyz: Complex(np.trace(functools.reduce(np.ndarray.__matmul__, map(matrix, xyz))))
@@ -325,8 +325,8 @@ def casimir(order: int, basis: List[BasisVector]) -> Sum:
     dual_product = lambda xyz: functools.reduce(Element.__mul__, map(dual, xyz))
     summand = lambda xyz: tr(xyz) * dual_product(xyz)
     normalisation = 2 * (basis[0].matrix.shape[0])  # 2 * dimension of the representation
-    casimir = normalisation * functools.reduce(Element.__add__, map(summand, xyzs))
-    return casimir.reduce().canonicalize().sort_by_degree()
+    casimir = functools.reduce(Element.__add__, map(summand, xyzs))
+    return casimir.reduce().canonicalize().normalize().sort_by_degree()
 
 
 # TODO: This hangs by a thread
@@ -368,8 +368,8 @@ if __name__ == "__main__":
     print()
 
     print("Test, ob beide Methoden zum Erzeugen der Casimirs das gleiche tun:")
-    print("C2:", (c2 - casimir_second_order()).reduce())
-    print("C3:", (5 * c3 - 3 * casimir_third_order()).reduce())  # At least up to a factor
+    print("C2:", (c2 - 9*casimir_second_order()).reduce())
+    print("C3:", (5*c3 - 2*486*casimir_third_order()).reduce())  # At least up to a factor
     print()
 
     # z and z bar elements
@@ -431,15 +431,15 @@ if __name__ == "__main__":
     alpha_1_replacement = {classical_basis[3]: -h1, classical_basis[4]: h1 + h2}
     alpha_2_replacement = {classical_basis[3]: h1 + h2, classical_basis[4]: -h2}
 
-    d3 = (162*2*c3).replace(projection_replacement).reduce()
+    d3 = c3.replace(projection_replacement).reduce()
     print("This element should only contain H factors:")
     print(d3)
-    d3sym = (d3 + 81*c2).replace(projection_replacement).reduce().sort_by_degree()
+    d3sym = (d3 + 9*c2).replace(projection_replacement).reduce().sort_by_degree()
     print("Or even more symmetric:")
     print(d3sym)
     print()
-    e = d3.replace(chandra_replacement).reduce().canonicalize().sort_by_degree()
-    print("This is the supersymmetric polynomial in H1 and H2:")
+    e = d3sym.replace(chandra_replacement).reduce().canonicalize().sort_by_degree()
+    print("This is the supersymmetric degree 3 polynomial in H1 and H2:")
     print(e)
     print()
     f = (e.replace(alpha_1_replacement) - e).reduce().canonicalize()

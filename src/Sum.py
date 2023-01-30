@@ -135,3 +135,21 @@ class Sum(Element):
             assert isinstance(summand, Monomial)
             d[summand.coefficient] += Monomial(Complex(1), summand.simple_factors)
         return Sum(*(coefficient * element.reduce() for coefficient, element in d.items()))
+
+
+    @overload
+    def normalize(self) -> 'Sum':
+        ...
+
+    def normalize(self) -> 'Element':
+        if not self.is_reduced:
+            raise Exception("Normalizing a non-reduced Sum is not supported")
+        from src.Monomial import Monomial
+        denominators: list = []
+        for summand in self.summands:
+            assert isinstance(summand, Monomial)
+            z: Complex = summand.coefficient
+            denominators.append(z.re.denominator)
+            denominators.append(z.im.denominator)
+        normalization = sympy.lcm(denominators)
+        return (normalization * self).reduce()

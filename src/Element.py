@@ -15,17 +15,17 @@ class Element(abc.ABC):
     def __init__(self):
         self.is_reduced = self._determine_reduced()
 
-    def __add__(self, other: 'Element') -> 'Element':
+    def __add__(self, other: 'Element') -> 'Sum':
         from src.Sum import Sum
         return Sum(self, other)
 
     def __neg__(self):
         return Complex(-1) * self
 
-    def __sub__(self, other: 'Element') -> 'Element':
+    def __sub__(self, other: 'Element') -> 'Sum':
         return self + - other
 
-    def __mul__(self, other: 'Element') -> 'Element':
+    def __mul__(self, other: 'Element') -> 'Product':
         from src.Product import Product
         return Product(self, other)
 
@@ -69,6 +69,9 @@ class Element(abc.ABC):
     @abc.abstractmethod
     def replace(self, replacement: Replacement) -> 'Element':
         ...
+
+    def normalize(self) -> 'Element': # Formally "-> Self" but not in Python 3.10 yet
+        return self
 
     def sort_by_degree(self) -> 'Element':  # Formally "-> Self" but not in Python 3.10 yet
         return self
