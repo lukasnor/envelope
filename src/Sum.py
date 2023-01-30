@@ -2,6 +2,9 @@ from collections import Counter, defaultdict
 from functools import reduce
 from typing import overload, Dict, Tuple
 
+import numpy as np
+import sympy
+
 from src.Complex import Complex
 from src.Element import Element, Replacement
 
@@ -19,8 +22,10 @@ class Sum(Element):
     def __add__(self, other: Element):
         if isinstance(other, Sum):
             return Sum(*self.summands, *other.summands)
-        else:
+        elif isinstance(other, Element):
             return Sum(*self.summands, other)
+        else:
+            return NotImplemented
 
     def __str__(self):
         return reduce(lambda a, b: a + " + " + b, map(str, self.summands))
@@ -95,20 +100,32 @@ class Sum(Element):
     @overload
     def replace(self, replacement: Replacement) -> 'Sum':
         ...
+
     def replace(self, replacement: Replacement) -> Element:
         return Sum(*(summand.replace(replacement) for summand in self.summands))
 
     @overload
-    def sort(self) -> 'Sum':
+    def sort_by_degree(self) -> 'Sum':
         ...
 
-    def sort(self) -> 'Element':
+    def sort_by_degree(self) -> 'Element':
         if not self.is_reduced:
             raise Exception("Sorting a non-reduced Sum makes no sense")
         self.summands.sort(key=lambda s: s.degree(), reverse=True)
         return Sum(*self.summands)
 
-    # TODO: Refactor this
+    # # TODO
+    # def sort(self) -> 'Sum':
+    #     if not self.is_reduced:
+    #         raise Exception("Sorting a non-reduced Sum makes no sense")
+    #     new_summands = [*self.summands]
+    #     new_summands.sort()
+    #     return Sum(*new_summands)
+
+    @overload
+    def group_by_coefficient(self) -> 'Sum':
+        ...
+
     def group_by_coefficient(self) -> 'Element':
         if not self.is_reduced:
             raise Exception("Sorting a non-reduced Sum makes no sense")

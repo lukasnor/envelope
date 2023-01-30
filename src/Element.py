@@ -70,5 +70,8 @@ class Element(abc.ABC):
     def replace(self, replacement: Replacement) -> 'Element':
         ...
 
-    def sort(self) -> 'Element':  # Formally "-> Self" but not in Python 3.10 yet
+    def sort_by_degree(self) -> 'Element':  # Formally "-> Self" but not in Python 3.10 yet
+        return self
+
+    def group_by_coefficient(self) -> 'Element': # Formally "-> Self" but not in Python 3.10 yet
         return self

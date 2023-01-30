@@ -16,10 +16,13 @@ class Product(Element):
     def __mul__(self, other: 'Product') -> 'Product':
         ...
 
-    def __mul__(self, other):
+    def __mul__(self, other: Element):
         if isinstance(other, Product):
             return Product(*self.factors, *other.factors)
-        return Product(*(self.factors + [other]))
+        elif isinstance(other, Element):
+            return Product(*(self.factors + [other]))
+        else:
+            return NotImplemented
 
     def __str__(self):
         return reduce(lambda a, b: "(" + a + ") (" + b + ")", map(str, self.factors))
@@ -40,7 +43,7 @@ class Product(Element):
             return Monomial(Complex(1), [])
         # Check if only one factor
         if len(self.factors) == 1:
-            return self.factors[1].reduce()
+            return self.factors[0].reduce()
         # Check if factors are products themselves and unpack
         if any(isinstance(factor, Product) for factor in self.factors):
             new_factors = []

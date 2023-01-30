@@ -1,5 +1,6 @@
 import functools
 import itertools
+from collections import defaultdict
 from typing import Dict, List
 
 import numpy as np
@@ -290,7 +291,7 @@ def casimir_second_order() -> Element:
 
     casimir_2 = 12 * H1 * H1 - 6 * H1 * H2 - 6 * H2 * H1 + 12 * H2 * H2 + \
                 6 * (E12 * E21 + E21 * E12 + E13 * E31 + E31 * E13 + E23 * E32 + E32 * E23)
-    return casimir_2.reduce().canonicalize().sort()
+    return casimir_2.reduce().canonicalize().sort_by_degree()
 
 
 def casimir_third_order() -> Element:
@@ -313,10 +314,10 @@ def casimir_third_order() -> Element:
                       + E31 * E12 * E23 - E31 * E13 * H2 + E31 * H1 * E13
                       + H1 * E12 * E21 - H1 * E23 * E32 + H1 * E13 * E31 - H1 * E21 * E12 + H1 * H1 * H2 + H1 * H2 * H1 - H1 * H2 * H2
                       + H2 * E23 * E32 + H2 * E21 * E12 - H2 * E32 * E23 - H2 * E31 * E13 - H2 * H1 * H2 + H2 * H1 * H1 - H2 * H2 * H1)
-    return casimir_3.reduce().canonicalize().sort()
+    return casimir_3.reduce().canonicalize().sort_by_degree()
 
 
-def casimir(order: int, basis: List[BasisVector]) -> Element:
+def casimir(order: int, basis: List[BasisVector]) -> Sum:
     xyzs = itertools.product(basis, repeat=order)
     matrix = lambda x: x.matrix  # TODO: Give the option to use an arbitrary representation, not just the standard one
     tr = lambda xyz: Complex(np.trace(functools.reduce(np.ndarray.__matmul__, map(matrix, xyz))))
@@ -325,21 +326,21 @@ def casimir(order: int, basis: List[BasisVector]) -> Element:
     summand = lambda xyz: tr(xyz) * dual_product(xyz)
     normalisation = 2 * (basis[0].matrix.shape[0])  # 2 * dimension of the representation
     casimir = normalisation * functools.reduce(Element.__add__, map(summand, xyzs))
-    return casimir.reduce().canonicalize().sort()
+    return casimir.reduce().canonicalize().sort_by_degree()
 
 
 # TODO: This hangs by a thread
 def cut_off_casimir(cc, z_replacement, xy_replacement):
     from src.Sum import Sum
-    p = Sum(*cc.summands[-11:]).sort()
+    p = Sum(*cc.summands[-11:]).sort_by_degree()
     print(p)
     t = Sum(*p.summands[:4])
     print(t)
-    tz = t.replace(z_replacement).reduce().canonicalize().sort()
+    tz = t.replace(z_replacement).reduce().canonicalize().sort_by_degree()
     print(tz)
     tz_prime = Sum(*tz.summands[:56])
     print(tz_prime)
-    txy = tz_prime.replace(xy_replacement).reduce().canonicalize().sort().group_by_coefficient()
+    txy = tz_prime.replace(xy_replacement).reduce().canonicalize().sort_by_degree().group_by_coefficient()
     print(txy)
 
 
@@ -369,6 +370,7 @@ if __name__ == "__main__":
     print("Test, ob beide Methoden zum Erzeugen der Casimirs das gleiche tun:")
     print("C2:", (c2 - casimir_second_order()).reduce())
     print("C3:", (5 * c3 - 3 * casimir_third_order()).reduce())  # At least up to a factor
+    print()
 
     # z and z bar elements
     z_basis = generate_z_basis(n)
@@ -393,11 +395,12 @@ if __name__ == "__main__":
     xy_basis = generate_xy_basis(n)
     xy_replacement = generate_z_by_xy_replacement(z_basis, xy_basis)
 
-    c2z = c2.replace(z_replacement).reduce().canonicalize()
-    c2xy = c2z.replace(xy_replacement).reduce().canonicalize().sort().group_by_coefficient()
-    c3z = c3.replace(z_replacement).reduce().canonicalize()
-    c3xy = c3z.replace(xy_replacement).reduce().canonicalize().sort().group_by_coefficient()
-    c3xy_corrected = (c3xy + Rational(1, 4) * c2xy).reduce().group_by_coefficient()
+    # Casimirs in xy coordinates
+    # c2z = c2.replace(z_replacement).reduce().canonicalize()
+    # c2xy = c2z.replace(xy_replacement).reduce().canonicalize().sort_by_degree().group_by_coefficient()
+    # c3z = c3.replace(z_replacement).reduce().canonicalize()
+    # c3xy = c3z.replace(xy_replacement).reduce().canonicalize().sort_by_degree().group_by_coefficient()
+    # c3xy_corrected = (c3xy + Rational(1, 4) * c2xy).reduce().group_by_coefficient()
 
     # l = []
     # for v in classical_basis:
@@ -409,12 +412,38 @@ if __name__ == "__main__":
     #                 l.append(tr)
     # print(len(l))
     #
-    # l = []
     # ads = generate_ad_action_matrices(classical_basis)
+    # c = Monomial(Complex(0))
     # for v in classical_basis:
     #     for w in classical_basis:
     #         for x in classical_basis:
     #             tr = np.trace(ads[v.index] @ ads[w.index] @ ads[x.index])
     #             if not tr == 0:
-    #                 #print(v, w, x, ":", tr)
-    #                 l.append(tr)
+    #                 print(v, w, x, ":", Complex(tr))
+    #                 c += Complex(tr) * v.dual * w.dual * x.dual
+    # print(c.reduce())
+    # c = (-4 * c).reduce().canonicalize().group_by_coefficient()
+
+    one = Complex(1)
+    One = Monomial(one)
+    projection_replacement = defaultdict(lambda: Monomial(Complex(0)), {classical_basis[3]: h1, classical_basis[4]: h2})
+    chandra_replacement = {classical_basis[3]: h1 - One, classical_basis[4]: h2 - One}
+    alpha_1_replacement = {classical_basis[3]: -h1, classical_basis[4]: h1 + h2}
+    alpha_2_replacement = {classical_basis[3]: h1 + h2, classical_basis[4]: -h2}
+
+    d3 = (162*2*c3).replace(projection_replacement).reduce()
+    print("This element should only contain H factors:")
+    print(d3)
+    d3sym = (d3 + 81*c2).replace(projection_replacement).reduce().sort_by_degree()
+    print("Or even more symmetric:")
+    print(d3sym)
+    print()
+    e = d3.replace(chandra_replacement).reduce().canonicalize().sort_by_degree()
+    print("This is the supersymmetric polynomial in H1 and H2:")
+    print(e)
+    print()
+    f = (e.replace(alpha_1_replacement) - e).reduce().canonicalize()
+    print("Check, if it is invariant under root reflection. Expected results: 0.")
+    print("alhpa_1:", f)
+    f = (e.replace(alpha_2_replacement) - e).reduce().canonicalize()
+    print("alpha_2:", f)

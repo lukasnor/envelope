@@ -1,3 +1,4 @@
+from functools import reduce, total_ordering
 from typing import Iterable, Tuple, overload, List, TYPE_CHECKING
 
 from src.BasisVector import BasisVector
@@ -5,6 +6,7 @@ from src.Complex import Complex
 from src.Element import Element, Replacement
 
 
+#@total_ordering
 class Monomial(Element):
 
     @classmethod
@@ -48,6 +50,17 @@ class Monomial(Element):
         if not isinstance(other, Monomial):
             return False
         return self.coefficient == other.coefficient and self.reduce().signature() == other.reduce().signature()
+
+    # # TODO
+    # def __le__(self, other):
+    #     if isinstance(other, Monomial):
+    #         if not self.degree() == other.degree():
+    #             return self.degree() >= other.degree()
+    #         self_tuple = tuple(reduce(list.__add__, map(lambda t: t[1]*[t[0].index], self.simple_factors)))
+    #         other_tuple = tuple(reduce(list.__add__, map(lambda t: t[1]*[t[0].index], other.simple_factors)))
+    #         return self_tuple >= other_tuple
+    #     else:
+    #         return NotImplemented
 
     def signature(self) -> Tuple[Tuple[BasisVector, int]]:
         if not self.is_reduced:
@@ -97,11 +110,11 @@ class Monomial(Element):
         if len(self.simple_factors) < 2:
             return self
         factor_index, not_determined = 0, True
-        for w in range(len(self.simple_factors) - 1):
+        for i in range(len(self.simple_factors) - 1):
             # Here the ordering of BasisVector via the index is relevant
             # The latter comparison should be between BasisVector
-            if not_determined and self.simple_factors[w][0] > self.simple_factors[w + 1][0]:
-                factor_index, not_determined = w, False
+            if not_determined and self.simple_factors[i][0] > self.simple_factors[i + 1][0]:
+                factor_index, not_determined = i, False
                 break  # an index has been found
         if not_determined:
             return self
@@ -109,6 +122,7 @@ class Monomial(Element):
         # v^n w^k = w v^n w^k-1 - (\sum_l=0^n v^l ad_w(v) v^n-1-l) w^k-1
         v, n = self.simple_factors[factor_index]
         w, k = self.simple_factors[factor_index + 1]
+        assert isinstance(v, BasisVector) and isinstance(w, BasisVector)
         new_factor = Monomial(Complex(1), [(w, 1), (v, n), (w, k - 1)]).reduce()
         summands = [Monomial(Complex(1), [(v, l)]) * w.ad(v) * Monomial(Complex(1), [(v, n - 1 - l)]) for l in range(n)]
         sum_expression = Sum(*summands).reduce()
@@ -135,6 +149,7 @@ class Monomial(Element):
 
     def degree(self) -> int:
         return sum(exponent for _, exponent in self.simple_factors)
+
 
 if __name__ == "__main__":
     h1 = BasisVector(symbol="Testvektor",
