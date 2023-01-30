@@ -318,14 +318,27 @@ def casimir_third_order() -> Element:
 
 
 def casimir(order: int, basis: List[BasisVector]) -> Element:
+    zero = Monomial(Complex(0))
+    def star(f):
+        @functools.wraps(f)
+        def f_inner(args):
+            return f(*args)
+        return f_inner
+    first = star(lambda a, b: a)
+    second = star(lambda a, b: b)
     xyzs = itertools.product(basis, repeat=order)
     matrix = lambda x: x.matrix  # TODO: Give the option to use an arbitrary representation, not just the standard one
-    tr = lambda xyz: Complex(np.trace(functools.reduce(np.ndarray.__matmul__, map(matrix, xyz))))
-    dual = lambda x: x.dual
-    dual_product = lambda xyz: functools.reduce(Element.__mul__, map(dual, xyz))
-    summand = lambda xyz: tr(xyz) * dual_product(xyz)
-    normalisation = 2 * (basis[0].matrix.shape[0])  # 2 * dimension of the representation
-    casimir = functools.reduce(Element.__add__, map(summand, xyzs))
+    tr = lambda xyz: np.trace(functools.reduce(np.ndarray.__matmul__, map(matrix, xyz)))  # tuple(vector) -> float
+    dual = lambda x: x.dual  # vector -> Element
+    dual_product = lambda xyz: functools.reduce(lambda x, y: x * y, map(dual, xyz)).reduce()  # tuple(vector) -> Product
+    double = lambda xyzs: itertools.tee(xyzs, 2)  # [tuple(vector)] -> tuple([tuple(vector)],[tuple(vector)])
+    test = star(lambda tr, xyz: not tr == 0.0)  # float -> tuple(vector) -> bool
+    first_tr = star(lambda xyzs, other: (map(tr, xyzs), other)) # [tuple(vector)] -> [tuple(vector)] -> [tuple(float, tuple(vector))]
+    trim = lambda xyzs: filter(test, xyzs)  # [tuple(float, tuple(vector))] -> [tuple(float, tuple(vector))]
+    split = lambda xyzs: star(lambda f, s: (map(first, f), map(second, s)))(double(xyzs))
+    further = star(lambda trs, vectors: (map(lambda tr: Complex(tr), trs), map(dual_product, vectors)))
+    mprod = lambda xyzs: map(star(lambda a, b: a * b), xyzs)
+    casimir = Sum(*mprod(zip(*further(split(trim(zip(*first_tr(double(xyzs)))))))))
     return casimir.reduce().canonicalize().normalize().sort_by_degree()
 
 
