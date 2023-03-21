@@ -61,6 +61,10 @@ def calc_casimir_actions():
 
 
 if __name__ == "__main__":
+
+    # These are "handcalculated" values for the different casimir actions
+    # They are meant as a comparative guide to check against for the general actions
+
     # n = 3
     h1, h2, h3, h4 = symbols("h1 h2 h3 h4")
     y1 = 3 * h1 + 2 * h2 + h3
@@ -90,7 +94,9 @@ if __name__ == "__main__":
     sl5phi2 = sl5psi2.subs(h1, h1 + 1).subs(h2, 1).subs(h3, 1).subs(h4, h4 + 1).expand() / (5)
 
     print("sl5phi1:", sl5phi1)
-    print("sl5phi2:", sl5phi2)
+    print("sl6phi2:", sl5phi2)
+
+    # And now in "full" generality
 
     i, j, k, n = symbols("i j k n")
     h = IndexedBase("h")
