@@ -77,8 +77,8 @@ class Sum(Element):
         if not all(summand.is_reduced for summand in self.summands):
             return Sum(*(summand.reduce() for summand in self.summands)).reduce()
         # Throw out all zeros
-        if any(summand == Monomial(Complex(0)) for summand in self.summands):
-            zero = Monomial(Complex(0))
+        zero = Monomial(Complex(0))
+        if any(summand == zero for summand in self.summands):
             return Sum(*(summand for summand in self.summands if not summand == zero)).reduce()
         # At this point, every summand should be a non-zero monomial
         if not all(isinstance(summand, Monomial) for summand in self.summands):

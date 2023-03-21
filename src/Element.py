@@ -1,6 +1,6 @@
 import abc
 import numbers
-from typing import Hashable, Dict, TYPE_CHECKING
+from typing import Hashable, TYPE_CHECKING
 
 from sympy import Rational
 
@@ -8,7 +8,7 @@ from src.Complex import Complex
 
 if TYPE_CHECKING:
     from src.BasisVector import BasisVector
-Replacement = Dict['BasisVector', 'Element']
+Replacement = dict['BasisVector', 'Element']
 
 class Element(abc.ABC):
 

@@ -60,6 +60,9 @@ class Product(Element):
         # At this point, every factor should be a monomial or a sum
         if not all(isinstance(factor, Monomial) or isinstance(factor, Sum) for factor in self.factors):
             raise Exception("In this not yet distributed product, every factor should be a monomial or a sum.")
+        # If all factors are monomials, no distribution must happen
+        if all(isinstance(factor, Monomial) for factor in self.factors):
+            return reduce(Monomial.__mul__, self.factors)
         # Now distribute
         # There must be a better way to do this
         # TODO: Find the way
