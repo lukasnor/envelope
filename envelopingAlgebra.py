@@ -318,8 +318,7 @@ def casimir_third_order() -> Element:
 
 
 def casimir(order: int, basis: List[BasisVector]) -> Element:
-    zero = Monomial(Complex(0))
-    def star(f):
+    def star(f):  # function decorator to unpack tuples if necessary
         @functools.wraps(f)
         def f_inner(args):
             return f(*args)
@@ -339,6 +338,7 @@ def casimir(order: int, basis: List[BasisVector]) -> Element:
     further = star(lambda trs, vectors: (map(lambda tr: Complex(tr), trs), map(dual_product, vectors)))
     mprod = lambda xyzs: map(star(lambda a, b: a * b), xyzs)
     casimir = Sum(*mprod(zip(*further(split(trim(zip(*first_tr(double(xyzs)))))))))
+    print("Now reduce")
     return casimir.reduce().canonicalize().normalize().sort_by_degree()
 
 
@@ -358,6 +358,7 @@ def cut_off_casimir(cc, z_replacement, xy_replacement):
 
 
 if __name__ == "__main__":
+
     n = 2
     classical_basis = generate_sl(n)
     c2 = casimir(order=2, basis=classical_basis)
@@ -460,3 +461,25 @@ if __name__ == "__main__":
     print("alhpa_1:", f)
     f = (e.replace(alpha_2_replacement) - e).reduce().canonicalize()
     print("alpha_2:", f)
+
+    def casimir_action(casimir):
+        C = casimir.replace(projection_replacement).reduce()
+        def c(q, p):
+            Q = Monomial(Complex(q))
+            P = Monomial(Complex(p))
+            return C.replace({classical_basis[3]: Q, classical_basis[4]: P}).reduce()
+        return c
+    c3_action = casimir_action(d3sym)
+    c3_action(0, 0)
+
+    n = 5
+    order = 5
+    basis = generate_sl(n)
+    sl5_projection_replacement = defaultdict(lambda: Monomial(Complex(0)), {basis[10]: Monomial.convert(basis[10]),
+                                                                            basis[11]: Monomial.convert(basis[11]),
+                                                                            basis[12]: Monomial.convert(basis[12]),
+                                                                            basis[13]: Monomial.convert(basis[13])})
+    sl5c2 = casimir(2, basis)
+    sl5c3 = casimir(3, basis)
+    d2 = sl5c2.replace(sl5_projection_replacement).reduce()
+    d3 = sl5c3.replace(sl5_projection_replacement).reduce()
