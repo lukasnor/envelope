@@ -15,9 +15,14 @@ if __name__ == "__main__":
     print("q:", q)
     print("p:", p)
     c2 = q ** 2 + q * p + p ** 2 + 3 * q + 3 * p
-    print("a:", c2.simplify())
+    print("a:", c2.simplify())  # Sanity check, if the elliptic equations hold
     c3 = 2 * q ** 3 + 3 * q ** 2 * p - 3 * q * p ** 2 - 2 * p ** 3 + 9 * q ** 2 - 9 * p ** 2 + 9 * q - 9 * p
     hight_function = c3.simplify()
-    phi_min = sympy.solve(p, t)[0]
-    phi_max = sympy.solve(q, t)[1]
+    s1 = sympy.solve(p, t)
+    phi_min = s1[0]
+    s2 = sympy.solve(q, t)
+    phi_max = s2[1]
     # sympy.limit(phi_max, a, sympy.oo).doit()  # Does not work, use continuity of atan or wolframalpha or pen and paper
+    b, c = symbols("b c")
+    e = a * sin(t) + b*cos(t) -c
+    solution = sympy.solve(e, t)
