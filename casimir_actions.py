@@ -1,7 +1,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import cm
-from sympy import symbols, IndexedBase, Idx, Sum, Indexed, Wild, factor, Function
+from sympy import symbols, IndexedBase, Idx, Sum, Indexed, Wild, factor, Function, groebner
 import matplotlib as mpl
 
 
@@ -65,8 +65,18 @@ if __name__ == "__main__":
     # These are "handcalculated" values for the different casimir actions
     # They are meant as a comparative guide to check against for the general actions
 
-    # n = 3
+    # TODO n = 2
     h1, h2, h3, h4 = symbols("h1 h2 h3 h4")
+    x1 = 2 * h1 + h2
+    x2 = -h1 + h2
+    x3 = - x1 - x2
+
+    sl3psi1 = x1*x2 + x1*x3 + x2*x3
+    sl3phi1 = sl3psi1.subs(h1, h1+1).subs(h2, h2+1).expand()
+    sl3psi2 = x1*x2*x3
+    sl3phi2 = sl3psi2.subs(h1, h1+1).subs(h2, h2+1).expand()
+
+    # n = 3
     y1 = 3 * h1 + 2 * h2 + h3
     y2 = -h1 + 2 * h2 + h3
     y3 = - h1 - 2 * h2 + h3
@@ -76,9 +86,12 @@ if __name__ == "__main__":
     sl4phi1 = sl4psi1.subs(h1, h1+1).subs(h2, 1).subs(h3, h3+1).expand()/(-2)
     sl4psi2 = y1 * y4 * (y2 + y3) + (y1 + y4)*(y2*y3)
     sl4phi2 = sl4psi2.subs(h1, h1+1).subs(h2, 1).subs(h3, h3+1).expand()/(8)
+    sl4psi3 = y1 * y2 * y3 * y4
+    sl4phi3 = sl4psi3.subs(h1, h1+1).subs(h2, 1).subs(h3, h3+1).expand()
 
     print("sl4phi1", sl4phi1)
     print("sl4phi2", sl4phi2)
+    print("NEW: sl4phi3", sl4phi3)
 
 
     # n = 4
@@ -92,9 +105,18 @@ if __name__ == "__main__":
     sl5phi1 = sl5psi1.subs(h1, h1 + 1).subs(h2, 1).subs(h3, 1).subs(h4, h4 + 1).expand() / (-5)
     sl5psi2 = z1 * z5 * (z2 + z3 + z4) + (z1 + z5) * (z2 * z3 + z2 * z4 + z3 * z4) + (z2 * z3 * z4)
     sl5phi2 = sl5psi2.subs(h1, h1 + 1).subs(h2, 1).subs(h3, 1).subs(h4, h4 + 1).expand() / (5)
+    sl5psi3 = z1 * z5 * (z2 * z3 + z2 * z4 + z3 * z4) + (z1+z5)*(z2*z3*z4)
+    sl5phi3 = sl5psi3.subs(h1, h1 + 1).subs(h2, 1).subs(h3, 1).subs(h4, h4 + 1).expand()
+    sl5psi4 = z1*z2*z3*z4*z5
+    sl5phi4 = sl5psi4.subs(h1, h1 + 1).subs(h2, 1).subs(h3, 1).subs(h4, h4 + 1).expand()
+
+    g1 = groebner([sl5phi1], domain="QQ")
+    g2 = groebner([sl5phi1, sl5phi2], domain="QQ")
+    g3 = groebner([sl5phi1, sl5phi2, sl5phi3], domain="QQ")
 
     print("sl5phi1:", sl5phi1)
-    print("sl6phi2:", sl5phi2)
+    print("sl5phi2:", sl5phi2)
+    print("NEW: sl5phi3", sl5phi3)
 
     # And now in "full" generality
 
